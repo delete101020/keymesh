@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Không cho trang gọi mạng: dữ liệu không thể bị gửi ra ngoài -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'">
+<title>EnvVault</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--panel2:#f0f2f5;--text:#1b1f24;--muted:#626b77;--line:#dde1e6;--accent:#2f6fde;--accent-text:#fff;--danger:#c93a3a;--warn:#a96a12;--chip:#e8eefc;--chip-text:#24459b;--shared:#e3f3e8;--shared-text:#1e6b3a;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121417;--panel:#1a1d21;--panel2:#23272c;--text:#e6e8eb;--muted:#9aa3ad;--line:#2e333a;--accent:#5b8ef0;--accent-text:#0d1117;--danger:#ef6b6b;--warn:#e0a84a;--chip:#22304d;--chip-text:#a9c1f5;--shared:#1d3326;--shared-text:#8fd3a6;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#121417;--panel:#1a1d21;--panel2:#23272c;--text:#e6e8eb;--muted:#9aa3ad;--line:#2e333a;--accent:#5b8ef0;--accent-text:#0d1117;--danger:#ef6b6b;--warn:#e0a84a;--chip:#22304d;--chip-text:#a9c1f5;--shared:#1d3326;--shared-text:#8fd3a6;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+button{font:inherit;color:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--muted)}
+button:disabled{opacity:.6;cursor:default}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+button.danger{color:var(--danger)}
+button.ghost{background:none;border-color:transparent;padding:2px 6px;color:var(--muted)}
+button.ghost:hover{color:var(--text);border-color:var(--line)}
+input,select,textarea{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+textarea{font-family:var(--mono);font-size:12.5px;min-height:64px;resize:vertical}
+input[type=checkbox]{width:auto;margin:0}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.muted{color:var(--muted)}
+
+#gate{min-height:100vh;display:grid;place-items:center;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;width:100%;max-width:420px}
+.card h1{margin:0 0 4px;font-size:20px}
+.card p{color:var(--muted);margin:0 0 16px}
+.stack{display:grid;gap:10px}
+.err{color:var(--danger);min-height:1.2em;font-size:13px}
+.note{font-size:12.5px;color:var(--muted);margin:4px 0 0}
+
+#app{display:none;height:100vh;grid-template-rows:auto 1fr}
+header{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+header .brand{font-weight:650}
+header .status{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+header input{max-width:300px;margin-left:auto}
+main{display:grid;grid-template-columns:240px 330px 1fr;min-height:0}
+nav,#list,#detail{overflow:auto;min-height:0}
+nav{border-right:1px solid var(--line);padding:8px;background:var(--panel)}
+.nav-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;cursor:pointer;min-height:30px}
+.nav-item:hover{background:var(--panel2)}
+.nav-item.on{background:var(--chip);color:var(--chip-text)}
+.nav-item .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-item .count{margin-left:auto;color:var(--muted);font-size:12px}
+.nav-item .tools{display:none;margin-left:auto}
+.nav-item:hover .tools{display:flex}
+.nav-item:hover .count{display:none}
+.nav-item.project{font-weight:600;margin-top:6px}
+.nav-item.env{padding-left:22px}
+.nav-sec{margin:14px 8px 2px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+#list{border-right:1px solid var(--line)}
+.list-head{position:sticky;top:0;z-index:1;background:var(--bg);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.row{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;gap:4px}
+.row:hover{background:var(--panel2)}
+.row.on{background:var(--chip)}
+.row .t{display:flex;gap:8px;align-items:center;font-weight:500;min-width:0}
+.row .t span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .sub{color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{font-size:10px;font-weight:650;letter-spacing:.04em;padding:1px 6px;border-radius:4px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:12px;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--chip-text);display:inline-flex;align-items:center;gap:2px}
+.chip.shared{background:var(--shared);color:var(--shared-text)}
+.chip.warn{background:transparent;box-shadow:inset 0 0 0 1px var(--warn);color:var(--warn)}
+.chip button{background:none;border:0;padding:0 2px;color:inherit;font-size:12px;opacity:.75}
+.chip button:hover{opacity:1}
+#detail{padding:20px 24px 40px}
+.empty{color:var(--muted);padding:40px 20px;text-align:center}
+.dh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dh h2{margin:0;font-size:20px;flex:1;min-width:160px;word-break:break-word}
+.callout{background:var(--shared);color:var(--shared-text);padding:8px 12px;border-radius:8px;font-size:13px;margin-top:8px}
+.section{margin-top:20px}
+.section h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px;font-weight:600}
+.field{display:grid;grid-template-columns:140px 1fr auto;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.field .lbl{color:var(--muted)}
+.field .val{font-family:var(--mono);font-size:13px;word-break:break-all;white-space:pre-wrap;min-width:0}
+.field .acts{display:flex;gap:2px}
+.notes{white-space:pre-wrap;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.ver{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px;background:var(--panel)}
+.ver .vh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.ver .field{grid-template-columns:120px 1fr auto;padding:4px 0}
+details summary{cursor:pointer;color:var(--muted)}
+.form-grid{display:grid;grid-template-columns:1fr 170px 150px;gap:8px}
+.form-grid label,.lbl-s{font-size:12px;color:var(--muted);display:grid;gap:3px}
+.edit-field{display:grid;grid-template-columns:140px 130px 1fr auto;gap:6px;margin-bottom:6px;align-items:start}
+.edit-field .btns{display:flex;gap:2px}
+.scope-proj{padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--panel)}
+.scope-proj .pn{font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.scope-proj label{display:inline-flex;gap:6px;align-items:center;margin-right:14px;cursor:pointer}
+.actions{display:flex;gap:8px;margin-top:20px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10}
+#toast.show{opacity:1}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:20px;width:min(380px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog h2{margin:0 0 12px;font-size:17px}
+@media (max-width:900px){
+  #app{height:auto}
+  main{grid-template-columns:1fr}
+  nav{max-height:32vh;border-right:0;border-bottom:1px solid var(--line)}
+  #list{max-height:40vh;border-right:0;border-bottom:1px solid var(--line)}
+  #detail{padding:16px}
+  header{flex-wrap:wrap}
+  header input{max-width:none;order:9}
+  .field,.ver .field{grid-template-columns:1fr auto}
+  .field .lbl{grid-column:1/-1}
+  .form-grid,.edit-field{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div id="gate"><div class="card"></div></div>
+
+<div id="app">
+  <header>
+    <span class="brand">EnvVault</span>
+    <span class="status" id="status"></span>
+    <input id="search" type="search" placeholder="Tìm kiếm (⌘/Ctrl+K)" autocomplete="off">
+    <button data-act="export" title="Tải file vault đã mã hoá về máy">Xuất file</button>
+    <button data-act="chpw">Đổi mật khẩu</button>
+    <button data-act="lock">Khoá</button>
+  </header>
+  <main>
+    <nav id="nav"></nav>
+    <section id="list"></section>
+    <section id="detail"></section>
+  </main>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="toast"></div>
+<input type="file" id="filein" accept=".json,application/json" hidden>
+
+<script>
+'use strict';
+const ITER = 600000;              // PBKDF2 iterations
+const LOCK_MS = 10 * 60 * 1000;   // tự khoá sau 10 phút không thao tác
+const CLIP_MS = 30 * 1000;        // xoá clipboard sau 30 giây
+const HISTORY_MAX = 20;
+
+const TYPES = {
+  login:   {label: 'Đăng nhập',      badge: 'LOGIN', fields: [['Username', 'text'], ['Password', 'secret'], ['URL', 'url']]},
+  api_key: {label: 'API key',        badge: 'API',   fields: [['API key', 'secret'], ['Secret', 'secret'], ['Endpoint', 'url']]},
+  token:   {label: 'Token',          badge: 'TOKEN', fields: [['Token', 'secret-multi']]},
+  ssh:     {label: 'SSH key / Cert', badge: 'SSH',   fields: [['Private key', 'secret-multi'], ['Public key', 'multi'], ['Passphrase', 'secret']]},
+  doc:     {label: 'Tài liệu',       badge: 'DOC',   fields: [['URL', 'url']]},
+  note:    {label: 'Ghi chú',        badge: 'NOTE',  fields: []},
+};
+const KINDS = {text: 'Văn bản', secret: 'Bí mật', url: 'Link', multi: 'Nhiều dòng', 'secret-multi': 'Bí mật nhiều dòng'};
+const isSecret = k => k.startsWith('secret');
+const isMulti = k => k.endsWith('multi');
+
+// ?nofs để ép chế độ lưu trong trình duyệt
+const hasFS = 'showOpenFilePicker' in window && !/nofs/.test(location.search);
+const FILE_TYPES = [{description: 'EnvVault', accept: {'application/json': ['.json']}}];
+
+let vault = null, key = null, salt = null, iter = ITER;
+let source = null, fileHandle = null;   // source: 'file' | 'browser'
+let sealed = null;                       // bản mã hoá mới nhất, dùng để mở lại sau khi khoá
+let pending = null;                      // {mode:'new'|'open', text?, handle?}
+let sel = {kind: 'all'}, selItem = null, editing = false, draft = null, isNew = false;
+let query = '', revealed = new Set();
+let dirty = false, saving = false, saveTimer = null, writeChain = Promise.resolve();
+let lastAct = Date.now(), clipTimer = null;
+
+// ---------- helpers ----------
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const uid = () => [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, '0')).join('');
+const b64 = u => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const fmtTime = ts => ts ? new Date(ts).toLocaleString('vi-VN') : '—';
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2000);
+}
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { localStorage.setItem(k, v); }
+
+// ---------- crypto ----------
+const enc = new TextEncoder(), dec = new TextDecoder();
+async function deriveKey(pw, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256'}, base,
+    {name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+}
+async function seal() {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name: 'AES-GCM', iv}, key, enc.encode(JSON.stringify(vault))));
+  return JSON.stringify({format: 'envvault', v: 1, kdf: {name: 'PBKDF2-SHA256', iter, salt: b64(salt)}, iv: b64(iv), ct: b64(ct)});
+}
+async function unseal(text, pw) {
+  let f;
+  try { f = JSON.parse(text); } catch { throw new Error('File không đúng định dạng'); }
+  if (f.format !== 'envvault') throw new Error('Không phải file EnvVault');
+  const s = unb64(f.kdf.salt), k = await deriveKey(pw, s, f.kdf.iter);
+  let pt;
+  try { pt = await crypto.subtle.decrypt({name: 'AES-GCM', iv: unb64(f.iv)}, k, unb64(f.ct)); }
+  catch { throw new Error('Sai mật khẩu'); }
+  return {data: JSON.parse(dec.decode(pt)), key: k, salt: s, iter: f.kdf.iter};
+}
+
+// ---------- IndexedDB: nhớ file handle để mở lại nhanh ----------
+function idb(mode, fn) {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('envvault', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onerror = () => rej(r.error);
+    r.onsuccess = () => {
+      const tx = r.result.transaction('kv', mode), q = fn(tx.objectStore('kv'));
+      tx.oncomplete = () => res(q && q.result);
+      tx.onerror = () => rej(tx.error);
+    };
+  });
+}
+const idbGet = k => idb('readonly', s => s.get(k)).catch(() => null);
+const idbSet = (k, v) => idb('readwrite', s => s.put(v, k)).catch(() => {});
+
+// ---------- persistence ----------
+function persist() {
+  dirty = true; setStatus();
+  clearTimeout(saveTimer); saveTimer = setTimeout(writeNow, 300);
+}
+function writeNow() {
+  clearTimeout(saveTimer);
+  writeChain = writeChain.then(async () => {
+    if (!key) return;
+    saving = true; setStatus();
+    try {
+      const text = await seal();
+      if (source === 'file') {
+        const w = await fileHandle.createWritable(); await w.write(text); await w.close();
+      } else lsSet('envvault', text);
+      sealed = text; dirty = false;
+    } catch (x) { toast('Lỗi khi lưu: ' + x.message); }
+    saving = false; setStatus();
+  });
+  return writeChain;
+}
+function setStatus() {
+  if (!vault) return;
+  const where = source === 'file' ? '📁 ' + fileHandle.name : 'Lưu trong trình duyệt';
+  const state = saving ? 'Đang lưu…' : dirty ? 'Chưa lưu' : 'Đã lưu';
+  $('#status').textContent = `${where} · ${state}`;
+}
+function download(name, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: 'application/json'}));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---------- gate (mở / tạo / mở khoá) ----------
+async function showStart() {
+  $('#app').style.display = 'none'; $('#gate').hidden = false;
+  let h = `<h1>EnvVault</h1><p>Lưu thông tin đăng nhập theo dự án &amp; môi trường. Mã hoá AES‑256 ngay trên máy, không gửi dữ liệu đi đâu.</p><div class="stack">`;
+  if (!window.crypto?.subtle) {
+    h += `<div class="err">Trình duyệt không hỗ trợ Web Crypto ở ngữ cảnh này.</div></div>`;
+    $('#gate .card').innerHTML = h; return;
+  }
+  if (hasFS) {
+    const last = await idbGet('handle');
+    if (last) h += `<button class="primary" data-act="reopen">Mở lại ${esc(last.name)}</button>`;
+    h += `<button data-act="open-file">Mở file vault…</button><button data-act="new-file">Tạo vault mới…</button>
+      <p class="note">Mẹo: đặt file vault trong thư mục iCloud Drive / Google Drive / OneDrive để có bản sao lưu và dùng trên nhiều máy.</p>`;
+  } else {
+    if (lsGet('envvault')) h += `<button class="primary" data-act="open-browser">Mở vault trong trình duyệt</button>`;
+    h += `<button data-act="import">Nhập file vault…</button><button data-act="new-browser">Tạo vault mới</button>
+      <p class="note">Trình duyệt này không ghi file trực tiếp được nên dữ liệu được lưu trong trình duyệt. Nhớ bấm “Xuất file” định kỳ để sao lưu. Dùng Chrome/Edge để lưu thẳng vào file.</p>`;
+  }
+  h += `<div class="err" id="gerr"></div></div>`;
+  $('#gate .card').innerHTML = h;
+}
+function gateErr(m) { const e = $('#gerr'); if (e) e.textContent = m; }
+
+function showPassword() {
+  $('#app').style.display = 'none'; $('#gate').hidden = false;
+  const isNewVault = pending.mode === 'new';
+  const name = pending.handle ? pending.handle.name : 'Vault trong trình duyệt';
+  $('#gate .card').innerHTML = `
+    <h1>${isNewVault ? 'Đặt mật khẩu chính' : 'Mở khoá'}</h1><p>${esc(name)}</p>
+    <form id="pwform" class="stack">
+      <input type="password" id="pw1" placeholder="Mật khẩu chính" autocomplete="${isNewVault ? 'new-password' : 'current-password'}" required>
+      ${isNewVault ? `<input type="password" id="pw2" placeholder="Nhập lại mật khẩu" autocomplete="new-password" required>
+        <p class="note">Tối thiểu 10 ký tự. Không có cách khôi phục nếu quên mật khẩu này.</p>` : ''}
+      <button class="primary" id="pwbtn">${isNewVault ? 'Tạo vault' : 'Mở khoá'}</button>
+      <button type="button" data-act="back">Quay lại</button>
+      <div class="err" id="gerr"></div>
+    </form>`;
+  $('#pw1').focus();
+}
+
+async function onPwSubmit() {
+  const p1 = $('#pw1').value, btn = $('#pwbtn');
+  if (pending.mode === 'new') {
+    if (p1.length < 10) return gateErr('Mật khẩu tối thiểu 10 ký tự');
+    if (p1 !== $('#pw2').value) return gateErr('Mật khẩu nhập lại không khớp');
+  }
+  btn.disabled = true; btn.textContent = 'Đang xử lý…';
+  try {
+    if (pending.mode === 'new') {
+      salt = crypto.getRandomValues(new Uint8Array(16)); iter = ITER;
+      key = await deriveKey(p1, salt, iter);
+      vault = {v: 1, projects: [], items: []};
+    } else {
+      const r = await unseal(pending.text, p1);
+      vault = r.data; key = r.key; salt = r.salt; iter = r.iter;
+      sealed = pending.text;
+    }
+  } catch (x) {
+    btn.disabled = false; btn.textContent = 'Mở khoá';
+    return gateErr(x.message);
+  }
+  fileHandle = pending.handle || null;
+  source = fileHandle ? 'file' : 'browser';
+  if (fileHandle) idbSet('handle', fileHandle);
+  if (pending.mode === 'new') await writeNow();
+  pending = null;
+  enterApp();
+}
+
+async function readHandle(h) {
+  if ((await h.queryPermission({mode: 'readwrite'})) !== 'granted' &&
+      (await h.requestPermission({mode: 'readwrite'})) !== 'granted') throw new Error('Chưa được cấp quyền đọc/ghi file');
+  return (await h.getFile()).text();
+}
+
+async function gateAction(a) {
+  try {
+    if (a === 'reopen') {
+      const h = await idbGet('handle');
+      pending = {mode: 'open', text: await readHandle(h), handle: h}; showPassword();
+    } else if (a === 'open-file') {
+      const [h] = await showOpenFilePicker({types: FILE_TYPES});
+      pending = {mode: 'open', text: await readHandle(h), handle: h}; showPassword();
+    } else if (a === 'new-file') {
+      const h = await showSaveFilePicker({suggestedName: 'envvault.json', types: FILE_TYPES});
+      pending = {mode: 'new', handle: h}; showPassword();
+    } else if (a === 'open-browser') {
+      pending = {mode: 'open', text: lsGet('envvault')}; showPassword();
+    } else if (a === 'new-browser') {
+      if (lsGet('envvault') && !confirm('Đã có vault trong trình duyệt. Tạo mới sẽ GHI ĐÈ vault cũ. Tiếp tục?')) return;
+      pending = {mode: 'new'}; showPassword();
+    } else if (a === 'import') {
+      if (lsGet('envvault') && !confirm('Nhập file sẽ GHI ĐÈ vault đang có trong trình duyệt. Tiếp tục?')) return;
+      $('#filein').click();
+    } else if (a === 'back') {
+      pending = null; showStart();
+    }
+  } catch (x) {
+    if (x.name !== 'AbortError') gateErr(x.message);
+  }
+}
+
+// ---------- app ----------
+function enterApp() {
+  $('#gate').hidden = true; $('#app').style.display = 'grid';
+  lastAct = Date.now(); render();
+}
+
+async function lock() {
+  if (!key) return;
+  if (dirty) await writeNow();
+  pending = {mode: 'open', text: sealed, handle: fileHandle};
+  vault = key = draft = null; editing = false; revealed.clear();
+  $('#search').value = query = '';
+  showPassword();
+}
+
+const proj = id => vault.projects.find(p => p.id === id);
+const getItem = id => vault.items.find(i => i.id === id);
+function envMap() {
+  const m = new Map();
+  for (const p of vault.projects) for (const e of p.envs) m.set(e.id, {p, e, label: `${p.name} / ${e.name}`});
+  return m;
+}
+function expiryInfo(it) {
+  if (!it.expires) return null;
+  const d = Math.ceil((new Date(it.expires + 'T23:59:59') - Date.now()) / 864e5);
+  if (d < 0) return 'Đã hết hạn';
+  if (d <= 14) return `Hết hạn sau ${d} ngày`;
+  return null;
+}
+
+function itemsInView() {
+  let list = vault.items;
+  if (sel.kind === 'env') list = list.filter(i => i.scopes.includes(sel.id));
+  else if (sel.kind === 'project') {
+    const ids = new Set(proj(sel.id).envs.map(e => e.id));
+    list = list.filter(i => i.scopes.some(s => ids.has(s)));
+  } else if (sel.kind === 'none') list = list.filter(i => !i.scopes.length);
+  else if (sel.kind === 'expiring') list = list.filter(expiryInfo);
+  const q = query.trim().toLowerCase();
+  if (q) list = list.filter(i =>
+    [i.title, i.notes, TYPES[i.type]?.label, ...i.fields.map(f => f.label), ...i.fields.filter(f => !isSecret(f.kind)).map(f => f.v)]
+      .some(s => String(s || '').toLowerCase().includes(q)));
+  return [...list].sort((a, b) => a.title.localeCompare(b.title, 'vi'));
+}
+function viewLabel() {
+  if (sel.kind === 'env') return envMap().get(sel.id).label;
+  if (sel.kind === 'project') return proj(sel.id).name + ' (mọi môi trường)';
+  return {all: 'Tất cả', none: 'Chưa gán môi trường', expiring: 'Sắp/đã hết hạn'}[sel.kind];
+}
+
+function render() { renderNav(); renderList(); renderDetail(); setStatus(); }
+
+function renderNav() {
+  const count = pred => vault.items.filter(pred).length;
+  const on = (k, id) => sel.kind === k && (id === undefined || sel.id === id) ? ' on' : '';
+  const nav = (kind, label, n, cls = '', id, tools = '') => `
+    <div class="nav-item${cls}${on(kind, id)}" data-act="sel" data-kind="${kind}"${id ? ` data-id="${id}"` : ''}>
+      <span class="name">${esc(label)}</span><span class="count">${n}</span>${tools ? `<span class="tools">${tools}</span>` : ''}
+    </div>`;
+  let h = nav('all', 'Tất cả', vault.items.length) + nav('none', 'Chưa gán môi trường', count(i => !i.scopes.length));
+  const exp = count(expiryInfo);
+  if (exp) h += nav('expiring', '⚠ Sắp/đã hết hạn', exp);
+  h += `<div class="nav-sec">Dự án <button class="ghost" data-act="add-project" title="Thêm dự án">+ Thêm</button></div>`;
+  if (!vault.projects.length) h += `<p class="note" style="padding:4px 8px">Chưa có dự án. Bấm “+ Thêm” để tạo, ví dụ “Project A” với các môi trường dev, uat, staging, prod.</p>`;
+  for (const p of vault.projects) {
+    const ids = new Set(p.envs.map(e => e.id));
+    h += nav('project', p.name, count(i => i.scopes.some(s => ids.has(s))), ' project', p.id,
+      `<button class="ghost" data-act="add-env" data-id="${p.id}" title="Thêm môi trường">+env</button><button class="ghost" data-act="ren-project" data-id="${p.id}" title="Đổi tên">✎</button><button class="ghost" data-act="del-project" data-id="${p.id}" title="Xoá dự án">×</button>`);
+    for (const e of p.envs) h += nav('env', e.name, count(i => i.scopes.includes(e.id)), ' env', e.id,
+      `<button class="ghost" data-act="ren-env" data-id="${e.id}" title="Đổi tên">✎</button><button class="ghost" data-act="del-env" data-id="${e.id}" title="Xoá môi trường">×</button>`);
+  }
+  $('#nav').innerHTML = h;
+}
+
+function scopeChips(it, em, forkable) {
+  const shared = it.scopes.length > 1;
+  return it.scopes.map(s => {
+    const lbl = em.get(s)?.label ?? '?';
+    return `<span class="chip${shared ? ' shared' : ''}">${esc(lbl)}${forkable && shared ? `<button data-act="fork" data-env="${s}" title="Tách bản riêng cho môi trường này">⑂</button>` : ''}</span>`;
+  }).join('');
+}
+
+function renderList() {
+  const list = itemsInView(), em = envMap();
+  let h = `<div class="list-head"><strong>${esc(viewLabel())}</strong><button class="primary" data-act="new-item">+ Item</button></div>`;
+  if (!list.length) h += `<div class="empty">${query ? 'Không tìm thấy item phù hợp.' : 'Chưa có item nào ở đây.'}</div>`;
+  for (const it of list) {
+    const t = TYPES[it.type] || TYPES.note;
+    const sub = it.fields.find(f => !isSecret(f.kind) && f.v)?.v || t.label;
+    const exp = expiryInfo(it);
+    h += `<div class="row${it.id === selItem ? ' on' : ''}" data-act="pick" data-id="${it.id}">
+      <div class="t"><span class="badge">${t.badge}</span><span>${esc(it.title)}</span></div>
+      <div class="sub">${esc(sub)}</div>
+      <div class="chips">${scopeChips(it, em, false)}${exp ? `<span class="chip warn">${exp}</span>` : ''}</div>
+    </div>`;
+  }
+  $('#list').innerHTML = h;
+}
+
+function fieldRow(f, copyAttrs) {
+  const show = !isSecret(f.kind) || revealed.has(copyAttrs);
+  let val = show ? esc(f.v) : '••••••••••';
+  if (f.kind === 'url' && /^https?:\/\//i.test(f.v)) val = `<a href="${esc(f.v)}" target="_blank" rel="noopener noreferrer">${esc(f.v)}</a>`;
+  return `<div class="field"><div class="lbl">${esc(f.label)}</div><div class="val">${val}</div><div class="acts">
+    ${isSecret(f.kind) ? `<button class="ghost" data-act="reveal" data-key="${copyAttrs}">${show ? 'Ẩn' : 'Hiện'}</button>` : ''}
+    <button class="ghost" data-act="copy" data-key="${copyAttrs}">Sao chép</button></div></div>`;
+}
+
+function renderDetail() {
+  const d = $('#detail');
+  if (editing) return renderEdit();
+  const it = selItem && getItem(selItem);
+  if (!it) { d.innerHTML = `<div class="empty">Chọn một item để xem chi tiết.</div>`; return; }
+  const t = TYPES[it.type] || TYPES.note, em = envMap(), n = it.scopes.length;
+  let h = `<div class="dh"><span class="badge">${t.badge}</span><h2>${esc(it.title)}</h2>
+    <button data-act="edit">Sửa</button><button data-act="dup">Nhân bản</button><button class="danger" data-act="del-item">Xoá</button></div>`;
+  h += `<div class="section"><h3>Môi trường</h3>`;
+  if (n) h += `<div class="chips">${scopeChips(it, em, true)}</div>`;
+  else h += `<span class="muted">Chưa gán môi trường nào. Bấm “Sửa” để gán.</span>`;
+  if (n > 1) h += `<div class="callout">Item này đang dùng chung cho ${n} môi trường. Bạn chỉ cần sửa một lần, mọi môi trường đều thấy giá trị mới. Nếu một môi trường cần giá trị riêng, bấm ⑂ trên môi trường đó để tách ra bản riêng.</div>`;
+  h += `</div>`;
+  const filled = it.fields.map((f, i) => [f, i]).filter(([f]) => f.v);
+  if (filled.length || it.expires) {
+    h += `<div class="section"><h3>Thông tin</h3>`;
+    for (const [f, i] of filled) h += fieldRow(f, `c:${i}`);
+    if (it.expires) { const e = expiryInfo(it); h += `<div class="field"><div class="lbl">Hết hạn</div><div class="val">${esc(it.expires)}${e ? ` <span class="chip warn">${e}</span>` : ''}</div><div></div></div>`; }
+    h += `</div>`;
+  }
+  if (it.notes) h += `<div class="section"><h3>Ghi chú</h3><div class="notes">${esc(it.notes)}</div></div>`;
+  h += `<div class="section note">Tạo: ${fmtTime(it.createdAt)} · Cập nhật: ${fmtTime(it.updatedAt)}${it.forkedFrom && getItem(it.forkedFrom) ? ` · Tách từ <a href="#" data-act="pick" data-id="${it.forkedFrom}">${esc(getItem(it.forkedFrom).title)}</a>` : ''}</div>`;
+  if (it.history?.length) {
+    h += `<div class="section"><details><summary>Lịch sử thay đổi (${it.history.length} phiên bản trước)</summary>`;
+    it.history.forEach((v, vi) => {
+      h += `<div class="ver"><div class="vh"><strong>${fmtTime(v.at)}</strong><button class="ghost" data-act="restore" data-ver="${vi}">Khôi phục bản này</button></div>`;
+      if (v.title !== it.title) h += `<div class="note">Tiêu đề: ${esc(v.title)}</div>`;
+      v.fields.forEach((f, fi) => { if (f.v) h += fieldRow(f, `h:${vi}:${fi}`); });
+      if (v.notes) h += `<div class="note">Ghi chú: ${esc(v.notes)}</div>`;
+      h += `</div>`;
+    });
+    h += `</details></div>`;
+  }
+  d.innerHTML = h;
+}
+
+function fieldByKey(k) {
+  const it = getItem(selItem), p = k.split(':');
+  return p[0] === 'c' ? it.fields[+p[1]] : it.history[+p[1]].fields[+p[2]];
+}
+
+// ---------- edit ----------
+const template = type => TYPES[type].fields.map(([label, kind]) => ({id: uid(), label, kind, v: ''}));
+
+function startNew() {
+  if (!confirmDiscard()) return;
+  draft = {id: uid(), type: 'login', title: '', fields: template('login'), notes: '', expires: '',
+    scopes: sel.kind === 'env' ? [sel.id] : sel.kind === 'project' ? proj(sel.id).envs.map(e => e.id) : [], history: []};
+  isNew = true; editing = true; selItem = draft.id; renderList(); renderDetail();
+  $('[name=ititle]').focus();
+}
+function startEdit() { draft = clone(getItem(selItem)); isNew = false; editing = true; renderDetail(); }
+function confirmDiscard() {
+  if (!editing) return true;
+  if (!confirm('Bỏ các thay đổi đang sửa?')) return false;
+  editing = false; draft = null; if (isNew) selItem = null; return true;
+}
+
+function renderEdit() {
+  const d = draft, em = envMap();
+  let h = `<form id="editform" autocomplete="off"><div class="form-grid">
+    <label>Tiêu đề<input name="ititle" value="${esc(d.title)}" placeholder="vd: Tài khoản đối tác X" required></label>
+    <label>Loại<select name="itype">${Object.entries(TYPES).map(([k, t]) => `<option value="${k}"${k === d.type ? ' selected' : ''}>${t.label}</option>`).join('')}</select></label>
+    <label>Hết hạn (tuỳ chọn)<input type="date" name="iexpires" value="${esc(d.expires || '')}"></label>
+  </div>`;
+  h += `<div class="section"><h3>Trường thông tin</h3>`;
+  for (const f of d.fields) {
+    const sec = isSecret(f.kind);
+    const input = isMulti(f.kind)
+      ? `<textarea data-k="v" spellcheck="false">${esc(f.v)}</textarea>`
+      : `<input data-k="v" type="${sec && !revealed.has('e:' + f.id) ? 'password' : 'text'}" value="${esc(f.v)}" spellcheck="false" autocomplete="off">`;
+    h += `<div class="edit-field" data-id="${f.id}">
+      <input data-k="label" value="${esc(f.label)}" placeholder="Tên trường">
+      <select data-k="kind">${Object.entries(KINDS).map(([k, l]) => `<option value="${k}"${k === f.kind ? ' selected' : ''}>${l}</option>`).join('')}</select>
+      ${input}
+      <span class="btns">${sec && !isMulti(f.kind) ? `<button type="button" class="ghost" data-act="ereveal" data-id="${f.id}" title="Hiện/ẩn">👁</button><button type="button" class="ghost" data-act="gen" data-id="${f.id}" title="Tạo mật khẩu ngẫu nhiên">⚄</button>` : ''}<button type="button" class="ghost" data-act="rm-field" data-id="${f.id}" title="Xoá trường">×</button></span>
+    </div>`;
+  }
+  h += `<button type="button" data-act="add-field">+ Thêm trường</button></div>`;
+  h += `<div class="section"><h3>Ghi chú</h3><textarea name="inotes" style="font-family:inherit">${esc(d.notes)}</textarea></div>`;
+  h += `<div class="section"><h3>Gán vào môi trường</h3>`;
+  if (!vault.projects.length) h += `<span class="muted">Chưa có dự án nào. Tạo dự án ở cột bên trái trước.</span>`;
+  for (const p of vault.projects) {
+    h += `<div class="scope-proj"><div class="pn">${esc(p.name)}</div>`;
+    if (!p.envs.length) h += `<span class="muted">Chưa có môi trường</span>`;
+    for (const e of p.envs) h += `<label><input type="checkbox" name="scope" value="${e.id}"${d.scopes.includes(e.id) ? ' checked' : ''}> ${esc(e.name)}</label>`;
+    h += `</div>`;
+  }
+  h += `<p class="note">Chọn nhiều môi trường (kể cả khác dự án) nếu dùng chung một thông tin. Item chỉ lưu một bản duy nhất.</p></div>`;
+  h += `<div class="actions"><button class="primary">${isNew ? 'Tạo item' : 'Lưu'}</button><button type="button" data-act="cancel">Huỷ</button></div></form>`;
+  $('#detail').innerHTML = h;
+}
+
+function readForm() {
+  const f = $('#editform'), q = n => f.querySelector(`[name=${n}]`);
+  draft.title = q('ititle').value.trim();
+  draft.type = q('itype').value;
+  draft.expires = q('iexpires').value;
+  draft.notes = q('inotes').value;
+  draft.fields = [...f.querySelectorAll('.edit-field')].map(r => ({
+    id: r.dataset.id,
+    label: r.querySelector('[data-k=label]').value.trim(),
+    kind: r.querySelector('[data-k=kind]').value,
+    v: r.querySelector('[data-k=v]').value,
+  }));
+  draft.scopes = [...f.querySelectorAll('input[name=scope]:checked')].map(c => c.value);
+}
+
+function saveDraft() {
+  readForm();
+  if (!draft.title) { toast('Cần nhập tiêu đề'); return; }
+  draft.fields = draft.fields.filter(f => f.label || f.v);
+  const now = Date.now(), old = getItem(draft.id);
+  if (old) {
+    const snap = o => JSON.stringify([o.title, o.type, o.fields.map(f => [f.label, f.kind, f.v]), o.notes, o.expires || '']);
+    if (snap(old) !== snap(draft)) {
+      draft.history = [{at: old.updatedAt, title: old.title, type: old.type, fields: old.fields, notes: old.notes, expires: old.expires}, ...(old.history || [])].slice(0, HISTORY_MAX);
+      draft.updatedAt = now;
+    }
+    Object.assign(old, draft);
+  } else {
+    draft.createdAt = draft.updatedAt = now;
+    vault.items.push(draft);
+  }
+  editing = false; draft = null; revealed.clear();
+  persist(); render(); toast('Đã lưu');
+}
+
+function genPassword(len = 20) {
+  const cs = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*-_=+';
+  const out = [], lim = 256 - (256 % cs.length);
+  while (out.length < len) for (const b of crypto.getRandomValues(new Uint8Array(len * 2))) if (b < lim && out.length < len) out.push(cs[b % cs.length]);
+  return out.join('');
+}
+
+// ---------- item actions ----------
+function forkItem(envId) {
+  const it = getItem(selItem), lbl = envMap().get(envId).label;
+  if (!confirm(`Tách “${it.title}” thành bản riêng cho ${lbl}?\n\nBản gốc sẽ không còn gắn với ${lbl}. Bản mới bắt đầu với giá trị hiện tại, bạn sửa lại cho phù hợp.`)) return;
+  const now = Date.now();
+  const copy = {...clone(it), id: uid(), scopes: [envId], history: [], createdAt: now, updatedAt: now, forkedFrom: it.id};
+  it.scopes = it.scopes.filter(s => s !== envId);
+  vault.items.push(copy);
+  selItem = copy.id; persist(); render(); startEdit();
+}
+function duplicate() {
+  const it = getItem(selItem);
+  draft = {...clone(it), id: uid(), title: it.title + ' (bản sao)', history: []};
+  delete draft.forkedFrom;
+  isNew = true; editing = true; selItem = draft.id; renderDetail();
+}
+function deleteItem() {
+  const it = getItem(selItem);
+  const extra = it.scopes.length > 1 ? `\nItem này đang dùng chung cho ${it.scopes.length} môi trường, tất cả sẽ mất item.` : '';
+  if (!confirm(`Xoá “${it.title}”?${extra}`)) return;
+  vault.items = vault.items.filter(i => i.id !== it.id);
+  selItem = null; persist(); render();
+}
+function restoreVersion(vi) {
+  const it = getItem(selItem), v = it.history[vi];
+  if (!confirm(`Khôi phục phiên bản lúc ${fmtTime(v.at)}? Phiên bản hiện tại vẫn được giữ trong lịch sử.`)) return;
+  const cur = {at: it.updatedAt, title: it.title, type: it.type, fields: it.fields, notes: it.notes, expires: it.expires};
+  Object.assign(it, {title: v.title, type: v.type, fields: clone(v.fields), notes: v.notes, expires: v.expires, updatedAt: Date.now()});
+  it.history = [cur, ...it.history.filter((_, i) => i !== vi)].slice(0, HISTORY_MAX);
+  revealed.clear(); persist(); render(); toast('Đã khôi phục');
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.append(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+  }
+  toast('Đã sao chép, clipboard sẽ được xoá sau 30 giây');
+  clearTimeout(clipTimer);
+  clipTimer = setTimeout(() => navigator.clipboard.writeText('').catch(() => {}), CLIP_MS);
+}
+
+// ---------- project / env ----------
+function addProject() {
+  const name = prompt('Tên dự án:')?.trim();
+  if (!name) return;
+  const envs = (prompt('Các môi trường (phân cách bằng dấu phẩy):', 'dev, uat, staging, prod') || '')
+    .split(',').map(s => s.trim()).filter(Boolean).map(n => ({id: uid(), name: n}));
+  const p = {id: uid(), name, envs};
+  vault.projects.push(p); sel = {kind: 'project', id: p.id}; persist(); render();
+}
+function removeEnvs(ids) {
+  const set = new Set(ids);
+  for (const it of vault.items) it.scopes = it.scopes.filter(s => !set.has(s));
+  if (draft) draft.scopes = draft.scopes.filter(s => !set.has(s));
+}
+function affected(ids) { const set = new Set(ids); return vault.items.filter(i => i.scopes.some(s => set.has(s))).length; }
+function navAction(a, id) {
+  const em = envMap();
+  if (a === 'add-env') {
+    const n = prompt(`Thêm môi trường cho ${proj(id).name}:`)?.trim();
+    if (n) { proj(id).envs.push({id: uid(), name: n}); persist(); render(); }
+  } else if (a === 'ren-project') {
+    const p = proj(id), n = prompt('Tên mới:', p.name)?.trim();
+    if (n) { p.name = n; persist(); render(); }
+  } else if (a === 'ren-env') {
+    const e = em.get(id).e, n = prompt('Tên mới:', e.name)?.trim();
+    if (n) { e.name = n; persist(); render(); }
+  } else if (a === 'del-project') {
+    const p = proj(id), ids = p.envs.map(e => e.id), n = affected(ids);
+    if (!confirm(`Xoá dự án “${p.name}”?${n ? `\n${n} item sẽ được gỡ khỏi các môi trường của dự án này (item không bị xoá).` : ''}`)) return;
+    removeEnvs(ids); vault.projects = vault.projects.filter(x => x !== p);
+    if (sel.id === id || ids.includes(sel.id)) sel = {kind: 'all'};
+    persist(); render();
+  } else if (a === 'del-env') {
+    const {p, e, label} = em.get(id), n = affected([id]);
+    if (!confirm(`Xoá môi trường “${label}”?${n ? `\n${n} item sẽ được gỡ khỏi môi trường này (item không bị xoá).` : ''}`)) return;
+    removeEnvs([id]); p.envs = p.envs.filter(x => x !== e);
+    if (sel.id === id) sel = {kind: 'all'};
+    persist(); render();
+  }
+}
+
+function changePassword() {
+  const dlg = $('#dlg');
+  dlg.innerHTML = `<form id="chpwform" class="stack"><h2>Đổi mật khẩu chính</h2>
+    <input type="password" id="cp0" placeholder="Mật khẩu hiện tại" autocomplete="current-password" required>
+    <input type="password" id="cp1" placeholder="Mật khẩu mới (≥ 10 ký tự)" autocomplete="new-password" required>
+    <input type="password" id="cp2" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password" required>
+    <div class="err" id="cperr"></div>
+    <div class="actions" style="margin-top:0"><button class="primary">Đổi mật khẩu</button><button type="button" data-act="dlg-close">Huỷ</button></div></form>`;
+  dlg.showModal();
+}
+async function onChpw() {
+  const err = m => $('#cperr').textContent = m, p1 = $('#cp1').value;
+  if (p1.length < 10) return err('Mật khẩu mới tối thiểu 10 ký tự');
+  if (p1 !== $('#cp2').value) return err('Mật khẩu nhập lại không khớp');
+  await writeNow();
+  try { await unseal(sealed, $('#cp0').value); } catch { return err('Mật khẩu hiện tại không đúng'); }
+  salt = crypto.getRandomValues(new Uint8Array(16)); iter = ITER;
+  key = await deriveKey(p1, salt, iter);
+  await writeNow(); $('#dlg').close(); toast('Đã đổi mật khẩu chính');
+}
+
+// ---------- events ----------
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const a = b.dataset.act, id = b.dataset.id;
+  if (!vault || ['back'].includes(a)) { if (a !== 'lock') gateAction(a); return; }
+  switch (a) {
+    case 'sel':
+      if (!confirmDiscard()) return;
+      sel = {kind: b.dataset.kind, id}; renderNav(); renderList(); renderDetail(); break;
+    case 'pick':
+      e.preventDefault();
+      if (id === selItem && !editing) return;
+      if (!confirmDiscard()) return;
+      selItem = id; revealed.clear(); renderList(); renderDetail(); break;
+    case 'new-item': startNew(); break;
+    case 'edit': startEdit(); break;
+    case 'dup': duplicate(); break;
+    case 'del-item': deleteItem(); break;
+    case 'cancel': editing = false; draft = null; if (isNew) selItem = null; revealed.clear(); renderList(); renderDetail(); break;
+    case 'fork': forkItem(b.dataset.env); break;
+    case 'restore': restoreVersion(+b.dataset.ver); break;
+    case 'reveal': revealed.has(b.dataset.key) ? revealed.delete(b.dataset.key) : revealed.add(b.dataset.key); renderDetail(); break;
+    case 'copy': copyText(fieldByKey(b.dataset.key).v); break;
+    case 'add-field': readForm(); draft.fields.push({id: uid(), label: '', kind: 'text', v: ''}); renderEdit(); break;
+    case 'rm-field': readForm(); draft.fields = draft.fields.filter(f => f.id !== id); renderEdit(); break;
+    case 'gen': { const inp = b.closest('.edit-field').querySelector('[data-k=v]'); inp.value = genPassword(); inp.type = 'text'; revealed.add('e:' + id); break; }
+    case 'ereveal': { const k = 'e:' + id, inp = b.closest('.edit-field').querySelector('[data-k=v]'); revealed.has(k) ? revealed.delete(k) : revealed.add(k); inp.type = revealed.has(k) ? 'text' : 'password'; break; }
+    case 'add-project': if (confirmDiscard()) addProject(); break;
+    case 'add-env': case 'ren-project': case 'ren-env': case 'del-project': case 'del-env': navAction(a, id); break;
+    case 'export': seal().then(t => download(`envvault-${new Date().toISOString().slice(0, 10)}.json`, t)); break;
+    case 'chpw': changePassword(); break;
+    case 'dlg-close': $('#dlg').close(); break;
+    case 'lock': lock(); break;
+  }
+});
+
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  if (e.target.id === 'pwform') onPwSubmit();
+  else if (e.target.id === 'editform') saveDraft();
+  else if (e.target.id === 'chpwform') onChpw();
+});
+
+document.addEventListener('change', e => {
+  if (!editing) return;
+  if (e.target.name === 'itype') {
+    readForm();
+    if (draft.fields.every(f => !f.v)) draft.fields = template(draft.type);
+    renderEdit();
+  } else if (e.target.dataset.k === 'kind') { readForm(); renderEdit(); }
+});
+
+$('#search').addEventListener('input', e => { query = e.target.value; renderList(); });
+
+$('#filein').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  pending = {mode: 'open', text: await f.text()}; showPassword();
+});
+
+document.addEventListener('keydown', e => {
+  if (!vault) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#search').focus(); }
+  else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); if (editing) saveDraft(); else writeNow(); }
+  else if (e.key === 'Escape' && editing && !$('#dlg').open) { editing = false; draft = null; if (isNew) selItem = null; renderList(); renderDetail(); }
+});
+
+for (const ev of ['mousemove', 'keydown', 'click', 'scroll']) addEventListener(ev, () => lastAct = Date.now(), {passive: true, capture: true});
+setInterval(() => { if (key && Date.now() - lastAct > LOCK_MS) lock(); }, 15000);
+addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); });
+
+showStart();
+</script>
+</body>
+</html>
