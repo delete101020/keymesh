@@ -1,0 +1,15 @@
+{
+  "name": "keymesh",
+  "version": "2.0.0-dev",
+  "private": true,
+  "type": "module",
+  "description": "KeyMesh v2: credential vault mã hoá đầu-cuối, offline-first",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:browser": "node testkit/browser/run.mjs",
+    "vectors": "node testkit/gen-vectors.mjs"
+  }
+}
