@@ -201,6 +201,25 @@ passkey ─ PRF ─ HKDF ─┘ (chỉ lưu ở thiết bị)  ▼
 - Đổi master password chỉ bọc lại `accountKey`. Không phải mã hoá lại vault nào.
 - Tách `vaultKey` theo vault giúp xoay khoá, xoá hoặc export một vault mà không đụng các vault khác. Sau này có thể cho một vault dùng mật khẩu riêng (bọc `vaultKey` bằng khoá dẫn xuất từ mật khẩu đó thay vì `accountKey`) mà không phải đổi schema: `wrappedVaultKey` đã có trường `by`.
 
+### Tham số cố định
+
+Chốt ở KM-001 (build-plan, originator xác nhận 2026-10-30). Khi đã có dữ liệu thật thì **không đổi được** nếu không chuyển đổi dữ liệu; bộ vector ở `testkit/vectors.js` fail ngay khi một giá trị dưới đây bị đổi.
+
+| Tham số | Giá trị |
+|---|---|
+| Đầu vào PBKDF2 | Byte UTF-8 của master password, không chuẩn hoá Unicode |
+| `masterKey` | 32B, đầu ra PBKDF2-HMAC-SHA256 với `kdf.salt` (16B) và `kdf.iter` (600 000 ≤ `iter` ≤ 6 000 000; ngoài khoảng này là `unsupported` trước khi chạy PBKDF2, vì `kdf` do server trả về lúc đăng nhập) |
+| HKDF | HKDF-SHA256, **salt rỗng** (theo RFC 5869 §2.2 tương đương HashLen byte 0), đầu ra L = **32B** cho cả `encKey`, `authKey`, `prfKey` |
+| `info` của HKDF | Byte UTF-8 của `keymesh/enc`, `keymesh/auth`, `keymesh/prf` |
+| IKM của `prfKey` | Đúng 32B đầu ra PRF do WebAuthn trả về |
+| AAD | Byte UTF-8 của chuỗi AAD ghi ở từng envelope dưới đây; `<vaultId>` là 16 hex chữ thường |
+| AES-GCM | Khoá 256 bit, IV 12B, tag 16B nối sau ciphertext; `ct` = ciphertext ‖ tag |
+| Khoá đã bọc | `ct` là AES-GCM của 32B khoá thô, nên luôn dài 48B |
+| Base64 | Bảng chữ chuẩn (`+/`), có padding, không xuống dòng |
+| Plaintext của vault và meta | `JSON.stringify` của đối tượng, mã hoá UTF-8; vault được gzip trước khi mã hoá |
+
+Salt rỗng là đủ vì đầu vào HKDF đã là khoá đồng đều: `masterKey` đã có salt riêng cho từng user qua PBKDF2, và đầu ra PRF là 32B ngẫu nhiên của authenticator.
+
 ### Envelope cho vault
 
 ```jsonc
@@ -300,7 +319,7 @@ Theo cách đặt tên của ecm-hexa-be: tên bảng là **`<prefix>_<danh từ
 - Prefix chỉ áp dụng cho bảng D1. Object store IndexedDB (`vaults`, `meta`…) và đường dẫn API (`/api/vaults`) giữ nguyên.
 
 ```sql
--- migrations/0001_init.sql
+-- src/migrations/0001_init.sql
 
 CREATE TABLE dt_user (
   id                  TEXT PRIMARY KEY,          -- 'u_' + 16 hex

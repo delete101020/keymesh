@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>keymesh core tests</title>
+<!-- Test-only page served by run.mjs; never deployed, so the inline scripts below are fine here. -->
+<script type="importmap">
+{
+  "imports": {
+    "node:test": "/testkit/browser/node-test-shim.js",
+    "node:assert/strict": "/testkit/browser/assert-shim.js"
+  }
+}
+</script>
+</head>
+<body>
+<pre id="out"></pre>
+<script type="module">
+  import { runFiles } from 'node:test';
+
+  const out = document.getElementById('out');
+  const files = await (await fetch('/__tests')).json();
+  const t0 = performance.now();
+  const results = await runFiles(files, (r) => {
+    out.textContent += `${r.ok ? 'ok    ' : 'FAIL  '} ${r.name}\n`;
+  });
+  const report = { userAgent: navigator.userAgent, ms: performance.now() - t0, results };
+  await fetch('/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(report) });
+</script>
+</body>
+</html>

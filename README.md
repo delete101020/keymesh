@@ -18,3 +18,14 @@ Dữ liệu mã hoá đầu-cuối, dùng được trên máy tính, Android và
 | 06 | [API](docs/06-api.md) | Các endpoint của Pages Functions |
 | 07 | [Chức năng](docs/07-features.md) | Danh sách chức năng, wireframe desktop/mobile, tiêu chí chấp nhận |
 | 08 | [Lộ trình](docs/08-roadmap.md) | Các giai đoạn M0–M6, hướng chia sẻ nhiều người, các quyết định đã chốt |
+| 09 | [Hợp đồng lõi](docs/09-core-api.md) | Thao tác của `src/public/js/core/` (mật mã, model vault v2), loại lỗi, bộ vector cố định, epic nào dùng gì |
+
+## Chạy test
+
+Không có dependency nào để cài; cần Node ≥ 20.
+
+```bash
+npm test               # node --test trên test/*.test.js
+npm run test:browser   # cùng bộ test trong Chrome/Edge headless (đặt CHROME_PATH nếu không tự tìm thấy)
+npm run vectors        # tính lại testkit/vectors.js bằng node:crypto và so với bản đã commit
+```

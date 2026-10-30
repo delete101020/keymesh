@@ -12,8 +12,8 @@
     "aidlc-native-verifier",
     "aidlc-native-reviewer"
   ],
-  "currentStep": 0,
-  "status": "in_progress",
+  "currentStep": 5,
+  "status": "done",
   "strict_mode": true,
   "tags": [
     "CRYPTO",
@@ -24,69 +24,141 @@
     {
       "agent": "aidlc-native-originator",
       "name": "intent",
-      "status": "in_progress",
+      "status": "done",
       "revision": 1,
-      "runStatus": "awaiting_work",
+      "runStatus": "approved",
       "startedAt": "2026-10-30T04:44:57.000Z",
-      "finishedAt": null,
-      "history": [],
-      "artifactsProduced": []
+      "finishedAt": "2026-10-30T04:52:51.692Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-10-30T04:52:51.692Z",
+          "revision": 1
+        }
+      ],
+      "artifactsProduced": [
+        "docs/epics/KM-001/artifacts/intent.md"
+      ]
     },
     {
       "agent": "aidlc-native-product-owner",
       "name": "spec",
-      "status": "pending",
+      "status": "done",
       "revision": 1,
-      "runStatus": "pending",
-      "startedAt": null,
-      "finishedAt": null,
-      "history": [],
-      "artifactsProduced": []
+      "runStatus": "approved",
+      "startedAt": "2026-10-30T04:52:51.692Z",
+      "finishedAt": "2026-10-30T04:57:51.112Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-10-30T04:57:51.112Z",
+          "revision": 1
+        }
+      ],
+      "artifactsProduced": [
+        "docs/epics/KM-001/artifacts/spec.md"
+      ]
     },
     {
       "agent": "aidlc-native-engineer",
       "name": "build-plan",
-      "status": "pending",
+      "status": "done",
       "revision": 1,
-      "runStatus": "pending",
-      "startedAt": null,
-      "finishedAt": null,
-      "history": [],
-      "artifactsProduced": []
+      "runStatus": "approved",
+      "startedAt": "2026-10-30T04:57:51.112Z",
+      "finishedAt": "2026-10-30T05:09:05.790Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-10-30T05:09:05.790Z",
+          "revision": 1
+        }
+      ],
+      "artifactsProduced": [
+        "docs/epics/KM-001/artifacts/plan.md"
+      ]
     },
     {
       "agent": "aidlc-native-engineer",
       "name": "implement",
-      "status": "pending",
-      "revision": 1,
-      "runStatus": "pending",
-      "startedAt": null,
-      "finishedAt": null,
-      "history": [],
-      "artifactsProduced": []
+      "status": "done",
+      "revision": 2,
+      "runStatus": "approved",
+      "startedAt": "2026-10-30T06:32:45.541Z",
+      "finishedAt": "2026-10-30T06:57:34.283Z",
+      "feedback": "Rejected at step 6 (review): review trả về",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-10-30T05:48:54.372Z",
+          "revision": 1
+        },
+        {
+          "kind": "rerun",
+          "at": "2026-10-30T06:32:45.541Z",
+          "revision": 2,
+          "feedback": "Rejected at step 6 (review): review trả về"
+        },
+        {
+          "kind": "approve",
+          "at": "2026-10-30T06:57:34.283Z",
+          "revision": 2
+        }
+      ],
+      "artifactsProduced": [
+        "docs/epics/KM-001/artifacts/implement.md"
+      ]
     },
     {
       "agent": "aidlc-native-verifier",
       "name": "verify",
-      "status": "pending",
+      "status": "done",
       "revision": 1,
-      "runStatus": "pending",
-      "startedAt": null,
-      "finishedAt": null,
-      "history": [],
-      "artifactsProduced": []
+      "runStatus": "approved",
+      "startedAt": "2026-10-30T06:57:34.283Z",
+      "finishedAt": "2026-10-30T07:13:47.332Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-10-30T06:08:59.282Z",
+          "revision": 1
+        },
+        {
+          "kind": "approve",
+          "at": "2026-10-30T07:13:47.332Z",
+          "revision": 1
+        }
+      ],
+      "artifactsProduced": [
+        "docs/epics/KM-001/artifacts/verify.md"
+      ]
     },
     {
       "agent": "aidlc-native-reviewer",
       "name": "review",
-      "status": "pending",
+      "status": "done",
       "revision": 1,
-      "runStatus": "pending",
-      "startedAt": null,
-      "finishedAt": null,
-      "history": [],
-      "artifactsProduced": []
+      "runStatus": "approved",
+      "startedAt": "2026-10-30T07:13:47.332Z",
+      "finishedAt": "2026-10-30T07:38:36.383Z",
+      "history": [
+        {
+          "kind": "reject",
+          "at": "2026-10-30T06:32:45.541Z",
+          "revision": 1,
+          "reason": "review trả về",
+          "sentBackToIdx": 3
+        },
+        {
+          "kind": "approve",
+          "at": "2026-10-30T07:38:36.383Z",
+          "revision": 1
+        }
+      ],
+      "artifactsProduced": [
+        "docs/epics/KM-001/artifacts/review.md"
+      ]
     }
   ],
-  "updatedAt": "2026-10-30T04:44:57.000Z"
+  "updatedAt": "2026-10-30T07:38:36.383Z"
 }

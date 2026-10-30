@@ -17,7 +17,7 @@ Muốn mở thẳng một màn thì dùng `prototype/app.html#s=<màn>&sync=<tr�
 | File | Nội dung |
 |---|---|
 | `index.html` | Trang duyệt: khung desktop + mobile, chọn màn và trạng thái |
-| `prototype/styles.css` | Token màu, layout 3 cột (≥ 900px) và layout xếp chồng cho mobile. Dự định dùng lại cho `public/` |
+| `prototype/styles.css` | Token màu, layout 3 cột (≥ 900px) và layout xếp chồng cho mobile. Dự định dùng lại cho `src/public/` |
 | `prototype/data.js` | Dữ liệu giả, bám theo schema vault v2 ([03-data-model.md](../docs/03-data-model.md)) |
 | `prototype/app.js` | Render và điều hướng giữa các màn |
 
