@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KeyMesh · Prototype</title>
+<style>
+:root{--bg:#eceef1;--panel:#fff;--text:#1b1f24;--muted:#626b77;--line:#d5d9df;--accent:#2f6fde;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0c0e10;--panel:#1a1d21;--text:#e6e8eb;--muted:#9aa3ad;--line:#2e333a;--accent:#5b8ef0;color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.bar{position:sticky;top:0;z-index:2;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.bar h1{font-size:15px;margin:0 8px 0 0}
+.grp{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.grp span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:4px}
+button,select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.stage{display:flex;gap:24px;padding:20px 16px 40px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.dev{display:grid;gap:6px;justify-items:center}
+.dev small{color:var(--muted)}
+.frame{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel);box-shadow:0 6px 24px rgba(0,0,0,.08)}
+.frame.phone{border-radius:34px;border:10px solid #111;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+iframe{display:block;border:0}
+.desk-wrap{width:min(1280px,calc(100vw - 32px - 414px));min-width:640px}
+.desk-wrap iframe{width:100%;height:760px}
+@media (max-width:1100px){.desk-wrap{width:calc(100vw - 32px)}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>KeyMesh v2 · Prototype giao diện</h1>
+  <div class="grp" id="screens"><span>Màn</span></div>
+  <div class="grp"><span>Đồng bộ</span><select id="sync"><option value="synced">Đã đồng bộ</option><option value="pending">Chờ push</option><option value="offline">Offline</option><option value="error">Lỗi</option></select></div>
+  <div class="grp"><span>Chủ đề</span><select id="theme"><option value="">Hệ thống</option><option value="light">Sáng</option><option value="dark">Tối</option></select></div>
+  <div class="grp"><span>Khung</span><select id="layout"><option value="both">Desktop + Mobile</option><option value="desk">Chỉ desktop</option><option value="phone">Chỉ mobile</option></select></div>
+</div>
+<div class="stage">
+  <div class="dev" id="d-desk"><div class="frame desk-wrap"><iframe id="f-desk" title="Desktop"></iframe></div><small>Desktop · ≥ 900px</small></div>
+  <div class="dev" id="d-phone"><div class="frame phone"><iframe id="f-phone" title="Mobile" style="width:390px;height:780px"></iframe></div><small>Mobile · 390 × 780</small></div>
+</div>
+<script>
+const SCREENS = [
+  ['unlock', 'Mở khoá'], ['login', 'Đăng nhập'], ['signup', 'Tạo tài khoản'],
+  ['home', 'Trang chủ'], ['list', 'Danh sách env'], ['item', 'Chi tiết'], ['conflict', 'Xung đột'],
+  ['edit', 'Sửa item'], ['new', 'Item mới'], ['expiring', 'Sắp hết hạn'], ['trash', 'Thùng rác'],
+  ['settings', 'Cài đặt'], ['sync', 'Trạng thái sync'],
+];
+const st = Object.assign({ s: 'home', sync: 'synced', theme: '', layout: 'both' }, Object.fromEntries(new URLSearchParams(location.hash.slice(1))));
+const box = document.getElementById('screens');
+for (const [k, label] of SCREENS) { const b = document.createElement('button'); b.textContent = label; b.dataset.s = k; b.onclick = () => { st.s = k; apply(); }; box.append(b); }
+for (const id of ['sync', 'theme', 'layout']) { const el = document.getElementById(id); el.value = st[id]; el.onchange = () => { st[id] = el.value; apply(); }; }
+function apply() {
+  const q = new URLSearchParams({ s: st.s, sync: st.sync }); if (st.theme) q.set('theme', st.theme);
+  // app.js nghe hashchange nên chỉ cần đổi hash; t= buộc áp lại preset kể cả khi bấm lại cùng một màn
+  for (const f of ['f-desk', 'f-phone']) document.getElementById(f).src = 'prototype/app.html#' + q + '&t=' + Date.now();
+  document.getElementById('d-desk').hidden = st.layout === 'phone';
+  document.getElementById('d-phone').hidden = st.layout === 'desk';
+  box.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.s === st.s));
+  history.replaceState(null, '', '#' + new URLSearchParams(st));
+}
+apply();
+</script>
+</body>
+</html>

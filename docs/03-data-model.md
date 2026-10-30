@@ -40,6 +40,7 @@ erDiagram
 | Không có dấu thời gian theo field | Mỗi thuộc tính và mỗi field có đồng hồ riêng (`clock`) để **gộp theo field** |
 | Khoá mã hoá dẫn xuất trực tiếp từ mật khẩu | Dùng `accountKey` và `vaultKey` ngẫu nhiên, được bọc lại (xem mục 2) |
 | Không có thứ tự tuỳ chỉnh | Có `order` cho project và env |
+| 6 loại item, 5 kiểu field | Thêm loại `db`, `server`, `vpn`; thêm kiểu field `otp` và thuộc tính `field.file` |
 
 ### Id
 
@@ -89,14 +90,15 @@ Mỗi giá trị có thể sửa độc lập đều có một đồng hồ `{ "
   "items": [
     {
       "id": "i_77ab…",
-      "type": "login",            // login | api_key | token | ssh | doc | note
+      "type": "login",            // login | api_key | token | ssh | db | server | vpn | doc | note
       "title": "Partner X portal",
       "fields": [
         { "id": "f_01", "label": "Username", "kind": "text",   "v": "acme_uat",  "at": 0, "dev": "d_…", "deletedAt": null },
         { "id": "f_02", "label": "Password", "kind": "secret", "v": "••••",      "at": 0, "dev": "d_…", "deletedAt": null },
-        { "id": "f_03", "label": "URL",      "kind": "url",    "v": "https://…", "at": 0, "dev": "d_…", "deletedAt": null }
+        { "id": "f_03", "label": "URL",      "kind": "url",    "v": "https://…", "at": 0, "dev": "d_…", "deletedAt": null },
+        { "id": "f_04", "label": "One-time password", "kind": "otp", "v": "otpauth://totp/…", "at": 0, "dev": "d_…", "deletedAt": null }
       ],
-      "fieldOrder": ["f_01", "f_02", "f_03"],
+      "fieldOrder": ["f_01", "f_02", "f_03", "f_04"],
       "notes": "Đối tác cấp, dùng chung UAT + Staging",
       "tags": ["partner-x"],
       "favorite": false,
@@ -125,7 +127,8 @@ Mỗi giá trị có thể sửa độc lập đều có một đồng hồ `{ "
 }
 ```
 
-- `field.label`, `field.kind` và `field.v` dùng chung đồng hồ `at/dev` của field: sửa bất kỳ phần nào của một field thì cả field được coi là đã đổi.
+- `field.label`, `field.kind`, `field.v` và `field.file` (nếu có) dùng chung đồng hồ `at/dev` của field: sửa bất kỳ phần nào của một field thì cả field được coi là đã đổi.
+- `field.file` là tuỳ chọn, chỉ dùng cho `multi` và `secret-multi`: tên file gốc (ví dụ `"partnerx-uat.ovpn"`) khi nội dung được đọc từ file. Có `file` thì UI hiện tên file thay cho nội dung và có nút tải lại thành file đúng tên đó.
 - `fieldOrder` là một thuộc tính đơn. Field có trong `fields` mà không có trong `fieldOrder` (do bên kia mới thêm) được nối vào cuối khi hiển thị.
 - `scopes` và `tags` là **tập hợp**, không cần đồng hồ: khi gộp, phần thêm vào và phần bỏ ra so với `base` của cả hai bên đều được áp dụng.
 
@@ -138,8 +141,14 @@ Mỗi giá trị có thể sửa độc lập đều có một đồng hồ `{ "
 | `url` | link mở được | ✓ | |
 | `multi` | nhiều dòng | ✓ | |
 | `secret-multi` | nhiều dòng | ✓ | ✓ |
+| `otp` | mã TOTP hiện tại + đếm ngược | ✓ (copy mã, không copy secret) | ✓ (secret không bao giờ hiện ở màn xem) |
 
-### Mẫu field theo loại item (giữ như v1)
+- **File trong field nhiều dòng.** `multi` và `secret-multi` nhận nội dung từ file văn bản (nút *Chọn file…*, tối đa 64 KB). Vault không lưu file nhị phân; file lớn hơn hoặc nhị phân nằm ngoài phạm vi.
+- **`otp`.** `v` là URI `otpauth://totp/…` (đọc từ QR) hoặc secret base32 nhập tay. Client tính mã theo RFC 6238 bằng WebCrypto HMAC, hỗ trợ tham số `digits`, `period`, `algorithm` (SHA1, SHA256, SHA512) trong URI; mặc định 6 số, 30 giây, SHA1. Chỉ hỗ trợ TOTP; URI `otpauth://hotp/…` bị từ chối khi nhập. QR được đọc bằng camera (`getUserMedia` + `BarcodeDetector`, có thư viện giải mã QR dự phòng cho Safari/Firefox) hoặc từ ảnh chụp màn hình.
+
+### Mẫu field theo loại item
+
+v1 có 6 loại đầu; `db`, `server`, `vpn` thêm ở v2. Loại chỉ quyết định icon và field mẫu lúc tạo; sau đó field vẫn thêm, xoá, đổi kiểu tự do.
 
 | type | Field mặc định |
 |---|---|
@@ -147,8 +156,13 @@ Mỗi giá trị có thể sửa độc lập đều có một đồng hồ `{ "
 | `api_key` | API key (secret), Secret (secret), Endpoint (url) |
 | `token` | Token (secret-multi) |
 | `ssh` | Private key (secret-multi), Public key (multi), Passphrase (secret) |
+| `db` | Host (text), Port (text), Database (text), Username (text), Password (secret), Connection string (secret) |
+| `server` | Host (text), Username (text), Password (secret), Admin URL (url) |
+| `vpn` | Server (text), Username (text), Password (secret), Cấu hình (secret-multi, `file` mặc định `client.ovpn`) |
 | `doc` | URL (url) |
 | `note` | — (dùng `notes`) |
+
+Field `otp` không nằm trong mẫu nào; người dùng thêm vào item bất kỳ (thường là `login`) qua *Thêm field*.
 
 ### Quy tắc toàn vẹn
 

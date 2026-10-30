@@ -66,6 +66,8 @@
 | Bản sao file | File bản sao tự động là `keymesh-backup` đã mã hoá, an toàn ngang file backup tải về. Lưu ý nếu đặt trong thư mục đồng bộ đám mây thì bên thứ ba có thêm một bản ciphertext để brute-force offline, nên master password càng phải mạnh |
 | Clipboard | Tự xoá sau 30 giây nếu nội dung clipboard vẫn là giá trị đã copy (best-effort; trên Android 13+ hệ điều hành cũng tự ẩn bản xem trước) |
 | Ẩn secret | Mặc định che, bấm vào để hiện, và tự che lại khi chuyển item |
+| OTP chung vault | Lưu secret TOTP cùng mật khẩu thì ai mở được vault là có đủ cả hai yếu tố đăng nhập. Chấp nhận được cho tài khoản thường (1Password, Bitwarden cũng cho làm vậy); tài khoản rất quan trọng (Cloudflare, email chính) nên giữ OTP ở app riêng. Màn xem chỉ hiện mã, không hiện secret |
+| Camera khi quét QR | Chỉ bật trong lúc dialog quét đang mở, dừng track ngay khi đọc được hoặc đóng dialog; không lưu ảnh. `Permissions-Policy` để `camera=(self)`, các API khác vẫn tắt. CSP không cần đổi vì giải mã QR chạy trong trang |
 | Cache API | Service Worker **không** cache `/api/*`, và API trả `Cache-Control: no-store` |
 
 ## Mô hình mối đe doạ

@@ -44,7 +44,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 
 | ID | Chức năng | Ưu tiên | Trạng thái |
 |---|---|---|---|
-| F-ITM-01 | Tạo item theo loại (login, api_key, token, ssh, doc, note) với field mẫu | P1 | ✅ |
+| F-ITM-01 | Tạo item theo loại với field mẫu. Bước 1 chọn loại (lưới icon + mô tả), bước 2 điền form. Loại: login, api_key, token, ssh, doc, note (v1) và **db, server, vpn** (v2) | P1 | ✅ (v2 thêm 3 loại) |
 | F-ITM-02 | Thêm, xoá, sắp xếp field tuỳ ý; đổi `kind` của field | P1 | ✅ |
 | F-ITM-03 | **Gán item vào nhiều env, kể cả khác project** | P1 | ✅ |
 | F-ITM-04 | Sửa item: mọi env được gán đều thấy giá trị mới | P1 | ✅ |
@@ -53,11 +53,13 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-ITM-07 | Xoá item: chuyển vào thùng rác (tombstone `deletedAt`, giữ nội dung) | P1 | ✅ → 🆕 |
 | F-ITM-08 | Lịch sử phiên bản (20 bản), xem diff, khôi phục | P1 | ✅ (v2 thêm diff) |
 | F-ITM-09 | Ngày hết hạn và danh sách "Sắp hết hạn" (≤ 14 ngày) | P2 | ✅ |
-| F-ITM-10 | Sinh mật khẩu ngẫu nhiên (độ dài, bộ ký tự) | P2 | ✅ (v2 thêm tuỳ chọn) |
+| F-ITM-10 | Sinh mật khẩu ngay cạnh field `secret`: chế độ *Ngẫu nhiên* (độ dài 8–64, chữ hoa, số, ký tự đặc biệt) và *Dễ nhớ* (ghép từ) | P2 | ✅ (v2 thêm tuỳ chọn) |
 | F-ITM-11 | Tag, đánh dấu yêu thích | P3 | 🆕 |
 | F-ITM-12 | **Thùng rác**: xem, khôi phục item đã xoá trong 30 ngày; *Xoá vĩnh viễn* từng item hoặc *Dọn thùng rác*; tự xoá trắng khi quá 30 ngày | P1 | 🆕 |
 | F-ITM-13 | Badge ⚠ cho item có xung đột đồng bộ, **tô sáng đúng field/thuộc tính bị xung đột**, kèm nút "Đã xử lý" | P1 | 🆕 |
 | F-ITM-14 | Hiện chip "Dùng chung: uat, staging (+1 project khác)" trong chi tiết item | P1 | ✅ |
+| F-ITM-15 | **Field OTP (TOTP)**: nhập secret base32 hoặc URI `otpauth://`, hoặc **quét QR** bằng camera / từ ảnh chụp màn hình; màn xem hiện mã hiện tại kèm đếm ngược, copy mã | P2 | 🆕 |
+| F-ITM-16 | **Field từ file**: field nhiều dòng đọc nội dung từ file văn bản (≤ 64 KB, ví dụ `.ovpn`, cert, SSH key) và tải lại thành file đúng tên ở màn xem | P2 | 🆕 |
 
 ## 4. Xem và tìm kiếm
 
@@ -78,7 +80,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-SYNC-03 | Xem và khôi phục snapshot trên server (theo từng vault) | P2 | 🆕 |
 | F-DATA-01 | Tải backup đã mã hoá (`keymesh-backup`), chọn một hoặc tất cả vault | P1 | ✅ (v1 là chính file) → 🆕 |
 | F-DATA-02 | Import file v1 hoặc backup v2 vào vault đang chọn hoặc vault mới | P1 | 🆕 |
-| F-DATA-03 | **Export sang Bitwarden JSON** (dạng tổ chức) **theo từng vault**: mỗi cặp `Project/env` thành một collection, item dùng chung có nhiều `collectionIds` | P2 | 🆕 |
+| F-DATA-03 | **Export sang Bitwarden JSON** (dạng tổ chức) **theo từng vault**: mỗi cặp `Project/env` thành một collection, item dùng chung có nhiều `collectionIds`. Field `otp` đầu tiên của item login thành `login.totp`; các field còn lại thành custom field | P2 | 🆕 |
 | F-DATA-04 | Export plaintext JSON/CSV, phải nhập lại mật khẩu và đọc cảnh báo | P3 | 🆕 |
 | F-DATA-05 | Nhật ký hoạt động (đăng nhập, thiết bị, lỗi xung đột) | P3 | 🆕 |
 | F-DATA-06 | **Bản sao tự động ra file** (chỉ Chromium desktop): chọn file một lần, app tự ghi đè `keymesh-backup` sau mỗi lần lưu/sync; chỉ ghi, không đọc để sync; báo khi cần cấp lại quyền | P2 | 🆕 |

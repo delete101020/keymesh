@@ -107,7 +107,7 @@ merge3(b, l, r, clockL, clockR):
 | Phần của thực thể | Cách gộp |
 |---|---|
 | Thuộc tính đơn: `type`, `title`, `notes`, `expires`, `favorite`, `forkedFrom`, `fieldOrder` (item); `name`, `order`, `color` (project/env) | `merge3` với `clock[attr]` |
-| `fields` | Gộp theo `field.id`. Field chỉ có ở một bên (mới thêm) thì giữ. Field có ở cả hai thì `merge3` trên cả field (`label`, `kind`, `v`, `deletedAt`) với đồng hồ `field.at/dev` |
+| `fields` | Gộp theo `field.id`. Field chỉ có ở một bên (mới thêm) thì giữ. Field có ở cả hai thì `merge3` trên cả field (`label`, `kind`, `v`, `file`, `deletedAt`) với đồng hồ `field.at/dev` |
 | `scopes`, `tags` | Gộp tập hợp ba chiều: phần tử có trong kết quả nếu (có ở cả `l` và `r`) hoặc (có ở `l`, không có ở `b`) hoặc (có ở `r`, không có ở `b`). Nghĩa là thêm từ hai phía đều được giữ, bỏ từ một phía được áp dụng nếu phía kia không thêm lại |
 | `history` | Gộp theo `(at, rev, dev)`, bỏ trùng, sắp mới nhất trước, cắt còn `HISTORY_MAX` |
 | `deletedAt`, `purgedAt` | Quy tắc riêng, xem bảng xoá bên dưới |

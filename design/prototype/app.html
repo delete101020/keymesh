@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f6fde">
+<title>KeyMesh</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="gate" hidden></div>
+
+<div id="app" hidden>
+  <header class="top"></header>
+  <main class="cols">
+    <section id="home" aria-label="Trang chủ"></section>
+    <nav class="side" aria-label="Điều hướng"></nav>
+    <section id="list" aria-label="Danh sách item"></section>
+    <section id="detail" aria-label="Chi tiết item"></section>
+  </main>
+  <footer class="status"></footer>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="toast" role="status"></div>
+<div id="shield" hidden>KeyMesh đã ẩn nội dung</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
