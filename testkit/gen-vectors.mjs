@@ -1,0 +1,126 @@
+// Generates the fixed KeyMesh test vectors with node:crypto and node:zlib — an implementation
+// independent of src/public/js/core/, so the vectors do not merely confirm the code under test.
+//
+//   node testkit/gen-vectors.mjs           recompute and compare with the committed testkit/vectors.js
+//   node testkit/gen-vectors.mjs --write   overwrite testkit/vectors.js (only when the format changes on purpose)
+//
+// The parameters below are the ones frozen in docs/03 §2 "Tham số cố định".
+import { pbkdf2Sync, hkdfSync, createCipheriv } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
+import { readFile, writeFile } from 'node:fs/promises';
+
+const OUT = new URL('./vectors.js', import.meta.url);
+const seq = (start, n) => Buffer.from(Array.from({ length: n }, (_, i) => (start + i) & 0xff));
+const b64 = (b) => Buffer.from(b).toString('base64');
+const hex = (b) => Buffer.from(b).toString('hex');
+
+function gcm(key, iv, plaintext, aad) {
+  const c = createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
+  c.setAAD(Buffer.from(aad, 'utf8'));
+  return Buffer.concat([c.update(plaintext), c.final(), c.getAuthTag()]);
+}
+
+const password = 'KeyMesh vector — mật khẩu 🔐';
+const salt = seq(0x00, 16);
+const kdf = { name: 'PBKDF2-SHA256', iter: 600000, salt: b64(salt) };
+const prf = seq(0x20, 32);
+const accountKey = seq(0x40, 32);
+const vaultKey = seq(0x60, 32);
+const vaultId = '0123456789abcdef';
+const iv = {
+  accountKeyByEnc: seq(0x80, 12),
+  accountKeyByPrf: seq(0x90, 12),
+  vaultKey: seq(0xa0, 12),
+  meta: seq(0xb0, 12),
+  vault: seq(0xc0, 12),
+};
+const meta = { name: 'Cá nhân', color: 'blue', order: 0 };
+const C = { at: 1761600000000, dev: 'd_5e2b000000000001' };
+const vault = {
+  v: 2,
+  vaultId,
+  projects: [{ id: 'p_8f3a000000000001', name: 'Payment Gateway', order: 0, clock: { name: C, order: C }, createdAt: C.at, updatedAt: C.at, rev: 1, deletedAt: null }],
+  envs: [
+    { id: 'e_19c2000000000001', projectId: 'p_8f3a000000000001', name: 'uat', order: 0, color: null, clock: { name: C, order: C, color: C }, createdAt: C.at, updatedAt: C.at, rev: 1, deletedAt: null },
+  ],
+  items: [
+    {
+      id: 'i_77ab000000000001',
+      type: 'login',
+      title: 'Cổng đối tác X 🚪',
+      fields: [
+        { id: 'f_01c4000000000001', label: 'Username', kind: 'text', v: 'acme_uat', at: C.at, dev: C.dev, deletedAt: null },
+        { id: 'f_01c4000000000002', label: 'Password', kind: 'secret', v: 'p@ss–wörd', at: C.at, dev: C.dev, deletedAt: null },
+      ],
+      fieldOrder: ['f_01c4000000000001', 'f_01c4000000000002'],
+      notes: 'Dùng chung UAT',
+      tags: ['partner-x'],
+      favorite: false,
+      expires: null,
+      scopes: ['e_19c2000000000001'],
+      forkedFrom: null,
+      clock: { type: C, title: C, notes: C, favorite: C, expires: C, forkedFrom: C, fieldOrder: C, deletedAt: C },
+      conflict: null,
+      history: [],
+      createdAt: C.at,
+      updatedAt: C.at,
+      rev: 1,
+      deletedAt: null,
+      purgedAt: null,
+    },
+  ],
+};
+
+const masterKey = pbkdf2Sync(Buffer.from(password, 'utf8'), salt, kdf.iter, 32, 'sha256');
+const empty = Buffer.alloc(0);
+const encKey = Buffer.from(hkdfSync('sha256', masterKey, empty, 'keymesh/enc', 32));
+const authKey = Buffer.from(hkdfSync('sha256', masterKey, empty, 'keymesh/auth', 32));
+const prfKey = Buffer.from(hkdfSync('sha256', prf, empty, 'keymesh/prf', 32));
+const vaultGzip = gzipSync(Buffer.from(JSON.stringify(vault), 'utf8'));
+
+const VECTORS = {
+  inputs: {
+    password,
+    kdf,
+    prf: b64(prf),
+    accountKey: b64(accountKey),
+    vaultKey: b64(vaultKey),
+    vaultId,
+    iv: Object.fromEntries(Object.entries(iv).map(([k, v]) => [k, b64(v)])),
+    meta,
+    vault,
+  },
+  // Intermediate values, for other implementations; core never exposes these as bytes.
+  derived: { masterKey: hex(masterKey), encKey: hex(encKey), prfKey: hex(prfKey) },
+  authKey: hex(authKey),
+  wrappedAccountKeyByEnc: { iv: b64(iv.accountKeyByEnc), ct: b64(gcm(encKey, iv.accountKeyByEnc, accountKey, 'keymesh/v2/account-key')) },
+  wrappedAccountKeyByPrf: { iv: b64(iv.accountKeyByPrf), ct: b64(gcm(prfKey, iv.accountKeyByPrf, accountKey, 'keymesh/v2/account-key')) },
+  wrappedVaultKey: { by: 'account', iv: b64(iv.vaultKey), ct: b64(gcm(accountKey, iv.vaultKey, vaultKey, `keymesh/v2/vault-key/${vaultId}`)) },
+  meta: { iv: b64(iv.meta), ct: b64(gcm(vaultKey, iv.meta, Buffer.from(JSON.stringify(meta), 'utf8'), `keymesh/v2/vault-meta/${vaultId}`)) },
+  // gzip output is not byte-identical across platforms, so the envelope is checked in two layers:
+  // decrypting `envelope` gives `inputs.vault`, and AES-GCM over the fixed `vaultGzip` gives `envelope.ct`.
+  vaultGzip: b64(vaultGzip),
+  envelope: {
+    format: 'keymesh',
+    v: 2,
+    alg: 'AES-GCM-256',
+    iv: b64(iv.vault),
+    ct: b64(gcm(vaultKey, iv.vault, vaultGzip, `keymesh/v2/vault/${vaultId}`)),
+  },
+};
+
+const source = `// Generated by testkit/gen-vectors.mjs with node:crypto, independently of src/public/js/core/.
+// Committed on purpose: never regenerate this file to make a failing test pass. A change here is a
+// change of the on-disk format (docs/03 §2) and needs a written reason.
+export const VECTORS = ${JSON.stringify(VECTORS, null, 2)};
+`;
+
+if (process.argv.includes('--write')) {
+  await writeFile(OUT, source);
+  console.log(`wrote ${OUT.pathname}`);
+} else {
+  const committed = await readFile(OUT, 'utf8').catch(() => '');
+  const same = committed.replace(/\r\n/g, '\n') === source;
+  console.log(same ? 'testkit/vectors.js matches node:crypto' : 'testkit/vectors.js DIFFERS from node:crypto');
+  process.exit(same ? 0 : 1);
+}

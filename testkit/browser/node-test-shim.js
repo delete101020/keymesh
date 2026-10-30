@@ -28,12 +28,13 @@ export async function runFiles(files, onResult) {
     }
     for (const t of registered.slice(start)) {
       const t0 = performance.now();
+      const diagnostics = [];
       let r;
       try {
-        await t.fn({ name: t.name });
-        r = { file, name: t.name, ok: true, ms: performance.now() - t0 };
+        await t.fn({ name: t.name, diagnostic: (msg) => diagnostics.push(String(msg)) });
+        r = { file, name: t.name, ok: true, ms: performance.now() - t0, diagnostics };
       } catch (e) {
-        r = { file, name: t.name, ok: false, error: describeError(e), ms: performance.now() - t0 };
+        r = { file, name: t.name, ok: false, error: describeError(e), ms: performance.now() - t0, diagnostics };
       }
       results.push(r);
       onResult?.(r);

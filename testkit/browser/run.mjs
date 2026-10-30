@@ -92,6 +92,7 @@ let failed = 0;
 for (const r of report.results) {
   if (!r.ok) failed++;
   console.log(`${r.ok ? 'ok  ' : 'FAIL'} ${r.name}${r.ok ? '' : `\n     ${r.error}`}`);
+  for (const d of r.diagnostics ?? []) console.log(`     # ${d}`);
 }
 console.log(`\n${report.userAgent}`);
 console.log(`tests ${report.results.length}  pass ${report.results.length - failed}  fail ${failed}  (${Math.round(report.ms)} ms)`);

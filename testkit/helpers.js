@@ -1,7 +1,8 @@
 // Shared test helpers. Runs unchanged on Node and in the browser runner.
 import { deriveFromPassword } from '../src/public/js/core/crypto.js';
 import { KeymeshError } from '../src/public/js/core/errors.js';
-import { fromBase64, toBase64 } from '../src/public/js/core/bytes.js';
+import { fromBase64, toBase64, toHex, randomBytes } from '../src/public/js/core/bytes.js';
+import { createVault, addProject, addEnv, createItem } from '../src/public/js/core/model.js';
 
 export const isNode = typeof globalThis.process?.versions?.node === 'string';
 
@@ -29,6 +30,19 @@ export function flipB64(b64, i) {
 
 export function b64Len(b64) {
   return fromBase64(b64).length;
+}
+
+// A vault whose JSON is at least `bytes` long, filled with random hex so gzip cannot shrink it away.
+export function bigVault(vaultId, bytes) {
+  const vault = createVault(vaultId);
+  const p = addProject(vault, { name: 'Load' }, ctx());
+  const env = addEnv(vault, p.id, { name: 'uat' }, ctx());
+  let n = 0;
+  while (JSON.stringify(vault).length < bytes) {
+    const item = createItem(vault, 'db', { title: `Database ${n++}`, scopes: [env.id], notes: toHex(randomBytes(256)) }, ctx());
+    for (const f of item.fields) f.v = toHex(randomBytes(64));
+  }
+  return vault;
 }
 
 // Source text of a core module, for static checks (FR22).
