@@ -95,39 +95,45 @@ sequenceDiagram
 | Triển khai | `wrangler` CLI; repo git cá nhân (có thể dùng Pages tự deploy từ GitHub) |
 | Test | `node --test` cho `merge.js` và `crypto.js`; Playwright (tuỳ chọn) cho E2E |
 
-## Cấu trúc repo đề xuất
+## Cấu trúc repo
+
+Toàn bộ mã sản phẩm nằm trong `src/`, và `src/` là *root directory* của project Pages (`wrangler pages dev` chạy từ `src/`; trên dashboard đặt Root directory = `src`). Thư mục gốc chỉ còn tài liệu, tham chiếu và test.
 
 ```
 keymesh/
 ├── README.md
-├── docs/                      # tài liệu này
-├── legacy/
-│   └── envvault.html          # bản v1 một file, chạy cục bộ (giữ để tham chiếu và migrate)
-├── public/                    # Cloudflare Pages phục vụ thư mục này
-│   ├── index.html
-│   ├── manifest.webmanifest
-│   ├── sw.js
-│   ├── icons/
-│   └── js/
-│       ├── app.js             # khởi động, router, render
-│       ├── ui/                # các màn hình
-│       ├── crypto.js
-│       ├── store.js
-│       ├── sync.js
-│       ├── merge.js
-│       ├── mirror.js          # bản sao tự động ra file (Chromium)
-│       ├── config.js          # cấu hình theo domain
-│       └── model.js           # schema, migrate v1 → v2, validate
-├── functions/
-│   └── api/
-│       └── [[route]].js       # router API (hoặc tách file theo nhóm)
-├── migrations/
-│   └── 0001_init.sql
-├── test/
-│   ├── merge.test.js
-│   └── crypto.test.js
-├── _headers                   # CSP và các security header cho Pages
-└── wrangler.toml
+├── package.json               # "type": "module", chỉ có scripts, không có dependency (trừ wrangler)
+├── docs/                      # tài liệu này; 09-core-api.md là hợp đồng lõi
+├── design/                    # prototype giao diện, chỉ để tham chiếu
+├── envvault.html              # bản v1 một file, chỉ để tham chiếu (không sửa)
+├── src/
+│   ├── wrangler.toml          # pages_build_output_dir = "public", binding D1
+│   ├── public/                # Cloudflare Pages phục vụ thư mục này
+│   │   ├── index.html
+│   │   ├── manifest.webmanifest
+│   │   ├── sw.js
+│   │   ├── _headers           # CSP và các security header (phải nằm trong thư mục được phục vụ)
+│   │   ├── icons/
+│   │   └── js/
+│   │       ├── core/          # lõi thuần: không DOM, không lưu trữ, không mạng; chạy cả Node
+│   │       │   ├── bytes.js
+│   │       │   ├── errors.js
+│   │       │   ├── crypto.js
+│   │       │   ├── model.js   # schema, migrate v1 → v2, validate
+│   │       │   └── merge.js
+│   │       ├── app.js         # khởi động, router, render
+│   │       ├── ui/            # các màn hình
+│   │       ├── store.js
+│   │       ├── sync.js
+│   │       ├── mirror.js      # bản sao tự động ra file (Chromium)
+│   │       └── config.js      # cấu hình theo domain
+│   ├── functions/
+│   │   └── api/
+│   │       └── [[route]].js   # router API (hoặc tách file theo nhóm)
+│   └── migrations/
+│       └── 0001_init.sql
+├── test/                      # *.test.js, chạy bằng node --test
+└── testkit/                   # helper, vector, runner test trên trình duyệt (không được phục vụ)
 ```
 
 ## Triển khai và vận hành

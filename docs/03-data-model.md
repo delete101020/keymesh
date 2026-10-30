@@ -300,7 +300,7 @@ Theo cách đặt tên của ecm-hexa-be: tên bảng là **`<prefix>_<danh từ
 - Prefix chỉ áp dụng cho bảng D1. Object store IndexedDB (`vaults`, `meta`…) và đường dẫn API (`/api/vaults`) giữ nguyên.
 
 ```sql
--- migrations/0001_init.sql
+-- src/migrations/0001_init.sql
 
 CREATE TABLE dt_user (
   id                  TEXT PRIMARY KEY,          -- 'u_' + 16 hex
