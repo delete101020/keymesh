@@ -78,3 +78,4 @@ steps:
     skills:
       - aidlc-native-review
 on_failure: stop
+autopilot: true
