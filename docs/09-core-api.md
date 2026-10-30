@@ -21,7 +21,7 @@ Mọi lỗi lõi ném ra là `KeymeshError` với `code` thuộc bốn giá tr�
 |---|---|---|
 | `decrypt-failed` | AES-GCM từ chối: sai password/khoá, sai ngữ cảnh (`vaultId`, loại envelope), bị sửa bất kỳ byte nào. Mọi trường hợp đều ra **cùng** một lỗi | Báo "sai mật khẩu hoặc dữ liệu hỏng"; không phân biệt |
 | `format` | Envelope sai cấu trúc (thiếu trường, base64 hỏng, `iv` ≠ 12B, khoá bọc ≠ 48B), gzip/JSON hỏng sau giải mã, `vaultId` trong plaintext khác `vaultId` dùng để mở | Coi là dữ liệu hỏng |
-| `unsupported` | `format` ≠ `keymesh`, `v` ≠ 2, `alg` ≠ `AES-GCM-256`, `by` ≠ `account`, `kdf.name` ≠ `PBKDF2-SHA256`, `kdf.iter` < 600 000; nền tảng thiếu `crypto.subtle`, `getRandomValues`, `CompressionStream`, `DecompressionStream`, `TextEncoder`/`TextDecoder` | Báo cần bản app mới hơn / trình duyệt khác |
+| `unsupported` | `format` ≠ `keymesh`, `v` ≠ 2, `alg` ≠ `AES-GCM-256`, `by` ≠ `account`, `kdf.name` ≠ `PBKDF2-SHA256`, `kdf.iter` < 600 000 hoặc > 6 000 000 (`KDF_MAX_ITER`; `kdf` do server trả về nên không tin cậy); nền tảng thiếu `crypto.subtle`, `getRandomValues`, `CompressionStream`, `DecompressionStream`, `TextEncoder`/`TextDecoder` | Báo cần bản app mới hơn / trình duyệt khác |
 | `invalid` | Bên gọi truyền sai: loại item lạ, `kind` lạ, `file` trên `kind` không cho phép, id không tồn tại, `ctx` thiếu, handle khoá sai vai trò | Lỗi lập trình hoặc dữ liệu form chưa kiểm |
 
 `format` và `unsupported` luôn được báo **trước** khi thử giải mã.
@@ -40,7 +40,7 @@ Mọi thao tác dưới đây là `async` trừ `assertSupported`, `newKdf`, `ne
 |---|---|---|---|
 | `assertSupported()` | — | — | `unsupported` (nêu tên API thiếu) |
 | `newKdf()` | — | `{ name: 'PBKDF2-SHA256', iter: 600000, salt: <b64 16B> }` | — |
-| `deriveFromPassword(password, kdf)` | `string`, `kdf` đã lưu | `{ encKey, authKey: Uint8Array(32) }` | `unsupported` (`kdf.name`, `kdf.iter`) trước PBKDF2; `format` (`kdf`, `kdf.salt`); `invalid` |
+| `deriveFromPassword(password, kdf)` | `string`, `kdf` đã lưu | `{ encKey, authKey: Uint8Array(32) }` | `unsupported` (`kdf.name`, `kdf.iter` ngoài [`KDF_MIN_ITER`, `KDF_MAX_ITER`]) trước PBKDF2; `format` (`kdf`, `kdf.salt`); `invalid` |
 | `deriveFromPrf(prfBytes)` | `Uint8Array(32)` đầu ra PRF | `prfKey` | `invalid` |
 | `generateAccountKey()` | — | `accountKey` (32B ngẫu nhiên) | — |
 | `generateVaultKey()` | — | `vaultKey` (32B ngẫu nhiên) | — |
@@ -81,7 +81,7 @@ Mọi thao tác dưới đây là `async` trừ `assertSupported`, `newKdf`, `ne
 }
 ```
 
-Hằng export: `KDF_NAME`, `KDF_MIN_ITER`, `ENVELOPE_FORMAT`, `ENVELOPE_VERSION`, `ENVELOPE_ALG`, `DEFAULT_VAULT_META`.
+Hằng export: `KDF_NAME`, `KDF_MIN_ITER`, `KDF_MAX_ITER`, `ENVELOPE_FORMAT`, `ENVELOPE_VERSION`, `ENVELOPE_ALG`, `DEFAULT_VAULT_META`.
 
 ## `model.js`
 
@@ -102,7 +102,7 @@ Thao tác sửa **thay đổi vault tại chỗ** và trả về thực thể v�
 | `purgeItem(vault, itemId, ctx)` | Đặt `purgedAt` (và `deletedAt` nếu chưa có), xoá trắng nội dung. Xem dưới |
 | `validateVault(vault)` | `{ ok: true }` hoặc `{ ok: false, errors: [{ path, code, message }] }` |
 
-**Một lần lưu.** Với mọi thực thể: chỉ giá trị thật sự khác mới tính là đổi; nếu có đổi thì đồng hồ của đúng giá trị đó thành `{ at: ctx.now, dev: ctx.deviceId }`, `rev + 1`, `updatedAt = ctx.now`. Một lần lưu không đổi gì thì không tăng `rev`.
+**Một lần lưu.** Với mọi thực thể: chỉ giá trị thật sự khác mới tính là đổi; nếu có đổi thì đồng hồ của đúng giá trị đó thành `{ at: ctx.now, dev: ctx.deviceId }`, `rev + 1`, `updatedAt = ctx.now`. Một lần lưu không đổi gì thì không tăng `rev`. Thao tác sửa hoặc thành công trọn vẹn, hoặc ném `KeymeshError` mà không để lại thay đổi nào trên vault: bên gọi không cần làm việc trên bản sao.
 
 **`updateItem` — nộp bản nháp.** `draft` chỉ chứa các thuộc tính bên gọi muốn đặt: `type`, `title`, `notes`, `favorite`, `expires`, `forkedFrom`, `fieldOrder`, `tags`, `scopes`, `fields`. Riêng `fields` là trạng thái mới của **các field còn sống**:
 

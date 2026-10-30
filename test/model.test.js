@@ -174,6 +174,24 @@ test('AC16 FR17 editing one field value moves only that field at/dev', () => {
   assert.equal(item.history.length, 1);
 });
 
+test('FR17 a rejected updateItem or updateProject leaves the vault exactly as it was', () => {
+  const vault = createVault(VID);
+  const p = addProject(vault, { name: 'A' }, ctx());
+  const item = createItem(vault, 'login', { title: 'x' }, ctx());
+  const [user, pass, url] = item.fields;
+  const before = JSON.stringify(vault);
+  const T = ctx(T0 + 500, DEV_A);
+  // A valid field edit followed by an invalid attribute.
+  assert.throws(() => updateItem(vault, item.id, { fields: [{ id: user.id, v: 'changed' }, { id: pass.id }, { id: url.id }], type: 'bogus' }, T), hasCode('invalid'));
+  // A valid field edit followed by an invalid field.
+  assert.throws(() => updateItem(vault, item.id, { fields: [{ id: user.id, v: 'changed' }, { id: 'nope' }] }, T), hasCode('invalid'));
+  // A valid title followed by an invalid tags value.
+  assert.throws(() => updateItem(vault, item.id, { title: 'y', tags: 'not-an-array' }, T), hasCode('invalid'));
+  assert.throws(() => updateProject(vault, p.id, { name: 'B', order: 'x' }, T), hasCode('invalid'));
+  assert.equal(JSON.stringify(vault), before);
+  assert.equal(vault.items[0], item, 'the item keeps its identity');
+});
+
 test('FR19 FR17 adding a field, removing one (field.deletedAt) and setting/clearing file', () => {
   const vault = createVault(VID);
   const item = createItem(vault, 'ssh', {}, ctx());

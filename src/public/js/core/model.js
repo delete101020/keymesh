@@ -98,16 +98,15 @@ function nextOrder(list, pred = () => true) {
 // Apply `patch` to the clocked attributes `keys` of a project or env; returns whether anything changed.
 function patchClocked(entity, patch, keys, checks, ctx) {
   const c = stamp(ctx);
-  let changed = false;
-  for (const k of keys) {
-    if (!(k in patch) || same(patch[k], entity[k])) continue;
-    if (!checks[k](patch[k])) fail(k);
+  const changes = keys.filter((k) => k in patch && !same(patch[k], entity[k]));
+  // Check every value before writing any, so a failed patch leaves the entity untouched.
+  for (const k of changes) if (!checks[k](patch[k])) fail(k);
+  for (const k of changes) {
     entity[k] = patch[k];
     entity.clock[k] = { ...c };
-    changed = true;
   }
-  if (changed) touch(entity, ctx);
-  return changed;
+  if (changes.length > 0) touch(entity, ctx);
+  return changes.length > 0;
 }
 
 const PROJECT_CHECKS = { name: isStr, order: Number.isFinite };
@@ -325,12 +324,24 @@ function snapshot(item) {
 
 // Save a new state of an item. `draft` holds only the attributes the caller is changing; values
 // equal to the current ones are not changes. One call is one save: rev + 1, and at most one history
-// entry holding the state from before this save.
+// entry holding the state from before this save. A draft that fails validation changes nothing.
 export function updateItem(vault, itemId, draft, ctx) {
-  const c = stamp(ctx);
+  stamp(ctx);
   const item = liveItem(vault, itemId);
   if (item.deletedAt !== null) fail('itemId');
-  const d = draft ?? {};
+  // applyFields validates as it goes, so a failure midway is rolled back from a copy taken first.
+  const saved = clone(item);
+  try {
+    return saveItem(item, draft ?? {}, ctx);
+  } catch (err) {
+    for (const k of Object.keys(item)) delete item[k];
+    Object.assign(item, saved);
+    throw err;
+  }
+}
+
+function saveItem(item, d, ctx) {
+  const c = stamp(ctx);
   const before = snapshot(item);
   const changedAttrs = new Set();
 
