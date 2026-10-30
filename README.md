@@ -12,9 +12,9 @@ Dữ liệu mã hoá đầu-cuối, dùng được trên máy tính, Android và
 |---|---|---|
 | 01 | [Tổng quan](docs/01-overview.md) | Bối cảnh, mục tiêu, phạm vi, các quyết định chính, thuật ngữ |
 | 02 | [Kiến trúc](docs/02-architecture.md) | Thành phần, luồng chính, công nghệ, cấu trúc repo, triển khai |
-| 03 | [Thiết kế dữ liệu](docs/03-data-model.md) | Schema vault v2, khoá và envelope, IndexedDB, **D1 schema**, migrate v1→v2 |
+| 03 | [Thiết kế dữ liệu](docs/03-data-model.md) | Nhiều vault, schema vault v2, khoá và envelope, IndexedDB, **D1 schema**, migrate v1→v2 |
 | 04 | [Bảo mật](docs/04-security.md) | Mật mã, vòng đời khoá, xác thực, passkey, CSP, mô hình mối đe doạ |
-| 05 | [Đồng bộ](docs/05-sync.md) | Giao thức offline-first, gộp ba chiều, xử lý xung đột |
+| 05 | [Đồng bộ](docs/05-sync.md) | Giao thức offline-first theo từng vault, gộp ba chiều theo field, xử lý xung đột |
 | 06 | [API](docs/06-api.md) | Các endpoint của Pages Functions |
 | 07 | [Chức năng](docs/07-features.md) | Danh sách chức năng, wireframe desktop/mobile, tiêu chí chấp nhận |
-| 08 | [Lộ trình](docs/08-roadmap.md) | Các giai đoạn M0–M6, hướng chia sẻ nhiều người, câu hỏi mở |
+| 08 | [Lộ trình](docs/08-roadmap.md) | Các giai đoạn M0–M6, hướng chia sẻ nhiều người, các quyết định đã chốt |

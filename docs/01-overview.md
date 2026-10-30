@@ -39,17 +39,20 @@ Công ty có thể triển khai Vaultwarden nhưng chưa có thời điểm. Key
 | Mã | Quyết định | Lý do | Phương án đã loại |
 |---|---|---|---|
 | D1 | Host trên **Cloudflare Pages + Pages Functions + D1** | Chạy được trên cả iOS lẫn Android, không cần OAuth, cùng origin, miễn phí, D1 nhất quán mạnh nên phát hiện được xung đột | Google Drive: OAuth trong PWA trên iOS hay lỗi, token chỉ sống khoảng 1 giờ. Dropbox: tương tự. R2: cần thẻ thanh toán |
-| D2 | **Đồng bộ cả vault dưới dạng một blob mã hoá**, gộp dữ liệu ở client theo từng item | Đơn giản, server không biết cấu trúc dữ liệu, kích thước nhỏ | Mỗi item một dòng trong DB: lộ số lượng item và thời điểm sửa, phức tạp hơn mà chưa cần |
-| D3 | **Khoá phân tầng**: `vaultKey` ngẫu nhiên, được bọc bởi khoá dẫn xuất từ mật khẩu hoặc từ passkey | Đổi mật khẩu không phải mã hoá lại dữ liệu; mở khoá bằng vân tay | Mã hoá trực tiếp bằng khoá từ mật khẩu như v1 |
+| D2 | **Nhiều vault cho mỗi user, mỗi vault đồng bộ dưới dạng một blob mã hoá**, gộp dữ liệu ở client | Đơn giản, server không biết cấu trúc dữ liệu, kích thước nhỏ; tách được vault công việc và cá nhân, và là đơn vị chia sẻ tự nhiên sau này | Mỗi item một dòng trong DB: lộ số lượng item và thời điểm sửa, phức tạp hơn mà chưa cần. Một vault duy nhất: khó mở rộng |
+| D3 | **Khoá phân tầng**: `accountKey` ngẫu nhiên được bọc bởi khoá dẫn xuất từ mật khẩu hoặc từ passkey; mỗi vault có `vaultKey` riêng được bọc bởi `accountKey` | Đổi mật khẩu không phải mã hoá lại dữ liệu; mở khoá bằng vân tay; mở một lần là dùng được mọi vault; xoay khoá từng vault độc lập | Mã hoá trực tiếp bằng khoá từ mật khẩu như v1 |
 | D4 | Xác thực theo mô hình Bitwarden: `masterKey → HKDF → encKey + authKey`, server chỉ lưu `SHA-256(authKey)` | Server không bao giờ thấy mật khẩu hay khoá giải mã | OAuth, magic link |
 | D5 | **PWA vanilla JS, không có bước build** | Dễ đọc, dễ audit, ít phụ thuộc chuỗi cung ứng | React/Vue cùng bundler |
-| D6 | Gộp **ba chiều theo từng item** (base, local, remote); khi cả hai phía cùng sửa thì bản mới hơn thắng, bản thua được lưu vào lịch sử | Không bao giờ mất dữ liệu âm thầm | Ghi đè cả file theo kiểu bản ghi sau thắng |
+| D6 | Gộp **ba chiều theo từng field** (base, local, remote); sửa hai field khác nhau thì giữ cả hai; chỉ khi cả hai phía cùng sửa một field thì bản mới hơn thắng, bản thua được lưu vào lịch sử | Không bao giờ mất dữ liệu âm thầm, ít xung đột giả | Ghi đè cả file theo kiểu bản ghi sau thắng; gộp theo item (sửa hai field khác nhau vẫn bị tính là xung đột) |
+| D7 | **Xoá item vào thùng rác** 30 ngày trước khi xoá trắng | Lấy lại được item lỡ xoá mà không phải khôi phục cả snapshot | Xoá trắng ngay, chỉ dựa vào snapshot |
+| D8 | **Không dùng file cục bộ làm nơi lưu**; trên Chromium có bản sao tự động chỉ ghi ra file | Chỉ một luồng dữ liệu (IndexedDB ⇄ server) mà vẫn có bản sao ngoài trình duyệt | Đọc/ghi file như v1: phải gộp ba nguồn, không có compare-and-swap trên file, chỉ chạy trên Chromium |
 
 ## Thuật ngữ
 
 | Thuật ngữ | Nghĩa |
 |---|---|
-| **Vault** | Toàn bộ dữ liệu của một người dùng (projects, envs, items) |
+| **Vault** | Một tập dữ liệu (projects, envs, items) có khoá riêng, đồng bộ thành một blob. Một người dùng có một hoặc nhiều vault, ví dụ *Công việc* và *Cá nhân* |
+| **Account key** | Khoá ngẫu nhiên của tài khoản, mở bằng master password hoặc passkey, dùng để bọc `vaultKey` của từng vault |
 | **Project** | Dự án của công ty |
 | **Env** | Môi trường thuộc một project |
 | **Item** | Một đơn vị thông tin (login, API key, token, SSH, doc, note), gồm nhiều field |
@@ -57,5 +60,6 @@ Công ty có thể triển khai Vaultwarden nhưng chưa có thời điểm. Key
 | **Shared item** | Item có từ 2 scope trở lên |
 | **Fork** | Tách item ra thành bản riêng cho một env, kèm `forkedFrom` trỏ về bản gốc |
 | **Tombstone** | Bản ghi đánh dấu đã xoá (`deletedAt`), giữ lại để việc xoá được đồng bộ đúng |
-| **Blob** | Vault sau khi mã hoá, là thứ duy nhất server lưu |
+| **Thùng rác** | Nơi chứa item đã xoá (`deletedAt`) trong 30 ngày, còn đủ nội dung để khôi phục; sau đó item bị xoá trắng (`purgedAt`) |
+| **Blob** | Một vault sau khi mã hoá; server lưu một blob cho mỗi vault |
 | **Base** | Snapshot vault ở lần đồng bộ thành công gần nhất, dùng cho gộp ba chiều |

@@ -15,8 +15,20 @@ Ký hiệu ưu tiên: **P1** bắt buộc cho bản đầu · **P2** nên có ·
 | F-AUTH-06 | Đổi master password | P1 | ✅ → 🆕 (theo luồng mới) |
 | F-AUTH-07 | Quản lý thiết bị: xem và thu hồi session | P2 | 🆕 |
 | F-AUTH-08 | Đăng xuất (tuỳ chọn xoá dữ liệu cục bộ) | P1 | 🆕 |
-| F-AUTH-09 | Xoay khoá vault | P3 | 🆕 |
+| F-AUTH-09 | Xoay khoá của một vault; xoay khoá tài khoản | P3 | 🆕 |
 | F-AUTH-10 | Recovery key in ra giấy | P3 | ⏳ |
+| F-AUTH-11 | Chỉnh thời gian tự khoá trong cài đặt (desktop: không thao tác, mặc định 10 phút; mobile: sau khi chuyển nền, mặc định 60 giây) | P1 | 🆕 |
+
+## 1b. Vault
+
+Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3). Giao diện quản lý vault làm sau.
+
+| ID | Chức năng | Ưu tiên | Trạng thái |
+|---|---|---|---|
+| F-VLT-01 | Tạo sẵn một vault mặc định khi đăng ký; mọi chức năng khác chạy trên vault đang chọn | P1 | 🆕 |
+| F-VLT-02 | Tạo, đổi tên, đặt màu, xoá vault (xoá phải nhập lại mật khẩu, không xoá được vault cuối cùng) | P2 | 🆕 |
+| F-VLT-03 | Chuyển vault: bộ chọn ở đầu cột trái (desktop) hoặc đầu trang chủ (mobile); tìm kiếm có tuỳ chọn "mọi vault" | P2 | 🆕 |
+| F-VLT-04 | Chuyển hoặc sao chép item sang vault khác (scope bị bỏ vì env thuộc vault cũ) | P3 | 🆕 |
 
 ## 2. Project và môi trường
 
@@ -38,13 +50,13 @@ Ký hiệu ưu tiên: **P1** bắt buộc cho bản đầu · **P2** nên có ·
 | F-ITM-04 | Sửa item: mọi env được gán đều thấy giá trị mới | P1 | ✅ |
 | F-ITM-05 | **Fork** item cho một env (tạo bản riêng, gỡ env đó khỏi item gốc, lưu `forkedFrom`) | P1 | ✅ |
 | F-ITM-06 | Nhân bản item | P2 | ✅ |
-| F-ITM-07 | Xoá item (tombstone, xoá trắng nội dung) | P1 | ✅ → 🆕 |
+| F-ITM-07 | Xoá item: chuyển vào thùng rác (tombstone `deletedAt`, giữ nội dung) | P1 | ✅ → 🆕 |
 | F-ITM-08 | Lịch sử phiên bản (20 bản), xem diff, khôi phục | P1 | ✅ (v2 thêm diff) |
 | F-ITM-09 | Ngày hết hạn và danh sách "Sắp hết hạn" (≤ 14 ngày) | P2 | ✅ |
 | F-ITM-10 | Sinh mật khẩu ngẫu nhiên (độ dài, bộ ký tự) | P2 | ✅ (v2 thêm tuỳ chọn) |
 | F-ITM-11 | Tag, đánh dấu yêu thích | P3 | 🆕 |
-| F-ITM-12 | Thùng rác: khôi phục item đã xoá trong 30 ngày (chưa xoá trắng nội dung cho đến khi hết hạn) | P3 | ⏳ |
-| F-ITM-13 | Badge ⚠ cho item có xung đột đồng bộ, kèm nút "Đã xử lý" | P1 | 🆕 |
+| F-ITM-12 | **Thùng rác**: xem, khôi phục item đã xoá trong 30 ngày; *Xoá vĩnh viễn* từng item hoặc *Dọn thùng rác*; tự xoá trắng khi quá 30 ngày | P1 | 🆕 |
+| F-ITM-13 | Badge ⚠ cho item có xung đột đồng bộ, **tô sáng đúng field/thuộc tính bị xung đột**, kèm nút "Đã xử lý" | P1 | 🆕 |
 | F-ITM-14 | Hiện chip "Dùng chung: uat, staging (+1 project khác)" trong chi tiết item | P1 | ✅ |
 
 ## 4. Xem và tìm kiếm
@@ -61,14 +73,15 @@ Ký hiệu ưu tiên: **P1** bắt buộc cho bản đầu · **P2** nên có ·
 
 | ID | Chức năng | Ưu tiên | Trạng thái |
 |---|---|---|---|
-| F-SYNC-01 | Đồng bộ tự động, ưu tiên offline (xem [05-sync.md](05-sync.md)) | P1 | 🆕 |
+| F-SYNC-01 | Đồng bộ tự động, ưu tiên offline, theo từng vault, **gộp theo field** (xem [05-sync.md](05-sync.md)) | P1 | 🆕 |
 | F-SYNC-02 | Thanh trạng thái đồng bộ và nút "Đồng bộ ngay" | P1 | 🆕 |
-| F-SYNC-03 | Xem và khôi phục snapshot trên server | P2 | 🆕 |
-| F-DATA-01 | Tải backup đã mã hoá (`keymesh-backup`) | P1 | ✅ (v1 là chính file) → 🆕 |
-| F-DATA-02 | Import file v1 hoặc backup v2 | P1 | 🆕 |
-| F-DATA-03 | **Export sang Bitwarden JSON** (dạng tổ chức): mỗi cặp `Project/env` thành một collection, item dùng chung có nhiều `collectionIds` | P2 | 🆕 |
+| F-SYNC-03 | Xem và khôi phục snapshot trên server (theo từng vault) | P2 | 🆕 |
+| F-DATA-01 | Tải backup đã mã hoá (`keymesh-backup`), chọn một hoặc tất cả vault | P1 | ✅ (v1 là chính file) → 🆕 |
+| F-DATA-02 | Import file v1 hoặc backup v2 vào vault đang chọn hoặc vault mới | P1 | 🆕 |
+| F-DATA-03 | **Export sang Bitwarden JSON** (dạng tổ chức) **theo từng vault**: mỗi cặp `Project/env` thành một collection, item dùng chung có nhiều `collectionIds` | P2 | 🆕 |
 | F-DATA-04 | Export plaintext JSON/CSV, phải nhập lại mật khẩu và đọc cảnh báo | P3 | 🆕 |
 | F-DATA-05 | Nhật ký hoạt động (đăng nhập, thiết bị, lỗi xung đột) | P3 | 🆕 |
+| F-DATA-06 | **Bản sao tự động ra file** (chỉ Chromium desktop): chọn file một lần, app tự ghi đè `keymesh-backup` sau mỗi lần lưu/sync; chỉ ghi, không đọc để sync; báo khi cần cấp lại quyền | P2 | 🆕 |
 
 ## 6. PWA và mobile
 
@@ -129,7 +142,7 @@ Nguyên tắc cho mobile:
 - Vùng chạm tối thiểu 44×44 px. Ô tìm kiếm luôn ở đầu trang chủ.
 - Sửa item mở màn hình toàn trang; field secret dùng `autocomplete="off"`, `autocapitalize="off"` và `spellcheck="false"`.
 - Vuốt từ mép trái hoặc bấm "‹" để quay lại; điều hướng dựa trên `history.pushState` để nút Back của Android hoạt động đúng.
-- Khi chuyển nền thì khoá sau 60 giây và che nội dung (Android: hiện lớp phủ trắng khi `visibilitychange` để màn đa nhiệm không chụp lại secret).
+- Khi chuyển nền thì khoá sau 60 giây (chỉnh được trong cài đặt) và che nội dung (Android: hiện lớp phủ trắng khi `visibilitychange` để màn đa nhiệm không chụp lại secret).
 
 ### Thông báo và trạng thái
 
@@ -145,7 +158,11 @@ Nguyên tắc cho mobile:
 
 1. Tạo item "Partner X" gán vào `PaymentGW/uat` và `PaymentGW/staging` trên laptop. Trong ≤ 60 giây, item hiện trên điện thoại ở **cả hai** env.
 2. Đổi mật khẩu của item trên điện thoại khi đang **offline**, rồi bật mạng lại. Laptop nhận được mật khẩu mới, và lịch sử có bản cũ.
-3. Laptop và điện thoại cùng sửa item đó khi offline, rồi cả hai online. Item còn lại một bản, có badge ⚠, và lịch sử chứa bản thua.
+3. Laptop và điện thoại cùng sửa **field Password** của item đó khi offline, rồi cả hai online. Item còn lại một bản, có badge ⚠ trên field Password, và lịch sử chứa bản thua.
+   - Laptop sửa Password, điện thoại sửa Ghi chú của cùng item khi offline, rồi cả hai online. Item có **cả hai thay đổi** và **không** có badge ⚠.
+   - Laptop gán item thêm vào `PaymentGW/prod`, điện thoại gán thêm vào `CRM/uat` khi offline. Sau khi đồng bộ, item nằm ở cả bốn env.
 4. Mở app trên iPhone khi đang ở chế độ máy bay: vẫn mở khoá được bằng Face ID và xem được dữ liệu.
 5. Fork item cho `staging`. Sửa bản fork không ảnh hưởng bản ở `uat`.
 6. Export Bitwarden rồi import vào Vaultwarden thử nghiệm: item "Partner X" nằm trong 2 collection `PaymentGW/uat` và `PaymentGW/staging`.
+7. Xoá item trên laptop. Item biến khỏi danh sách trên cả hai thiết bị, hiện trong *Thùng rác*. Khôi phục trên điện thoại thì item quay lại đủ field và lịch sử trên cả hai thiết bị.
+8. Bật bản sao file trên Chrome desktop, sửa một item. Trong ≤ 15 giây file được ghi lại; import file đó vào một tài khoản thử nghiệm mở được bằng master password và thấy thay đổi vừa sửa.
