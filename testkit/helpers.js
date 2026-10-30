@@ -45,14 +45,17 @@ export function bigVault(vaultId, bytes) {
   return vault;
 }
 
-// Source text of a core module, for static checks (FR22).
-export async function readCoreSource(name) {
+// Text of a file relative to the repo root, for static checks (FR22, FR23).
+export async function readRepoFile(path) {
+  const url = new URL(`../${path}`, import.meta.url);
   if (isNode) {
     const { readFile } = await import('node:fs/promises');
-    return readFile(new URL(`../src/public/js/core/${name}`, import.meta.url), 'utf8');
+    return readFile(url, 'utf8');
   }
-  return (await fetch(new URL(`../src/public/js/core/${name}`, import.meta.url))).text();
+  return (await fetch(url)).text();
 }
+
+export const readCoreSource = (name) => readRepoFile(`src/public/js/core/${name}`);
 
 // Temporarily replace a global (e.g. crypto, CompressionStream) for the duration of `fn`.
 export async function withGlobal(name, value, fn) {

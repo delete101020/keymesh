@@ -22,7 +22,7 @@ import {
   purgeItem,
   validateVault,
 } from '../src/public/js/core/model.js';
-import { ctx, T0, DEV_A, DEV_B, hasCode, readCoreSource } from '../testkit/helpers.js';
+import { ctx, T0, DEV_A, DEV_B, hasCode, readCoreSource, readRepoFile } from '../testkit/helpers.js';
 
 const VID = '3f9c1a0b7d2e4c58';
 const live = (item) => item.fields.filter((f) => f.deletedAt === null);
@@ -366,6 +366,20 @@ test('FR22 core sources use no storage, network, DOM or console, and import only
     for (const s of specs) {
       assert.match(s, /^\.\/[a-z-]+\.js$/, `${name} imports ${s}`);
       assert.ok(CORE_FILES.includes(s.slice(2)), `${name} imports ${s} outside core/`);
+    }
+  }
+});
+
+test('FR23 docs/09-core-api.md names every public export of crypto.js and model.js', async () => {
+  const doc = await readRepoFile('docs/09-core-api.md');
+  const modules = {
+    'crypto.js': await import('../src/public/js/core/crypto.js'),
+    'model.js': await import('../src/public/js/core/model.js'),
+  };
+  for (const [file, mod] of Object.entries(modules)) {
+    for (const name of Object.keys(mod)) {
+      if (name === '_internal') continue;
+      assert.ok(doc.includes(`\`${name}`), `${file} export ${name} is missing from docs/09`);
     }
   }
 });
