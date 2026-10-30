@@ -1,5 +1,6 @@
 import { KeymeshError } from './errors.js';
-import { toBase64, fromBase64, toHex, utf8Encode, randomBytes, zeroize } from './bytes.js';
+import { toBase64, fromBase64, toHex, utf8Encode, utf8Decode, randomBytes, zeroize } from './bytes.js';
+import { createVault } from './model.js';
 
 const KEY_BITS = 256;
 const IV_LEN = 12;
@@ -260,6 +261,150 @@ export async function unwrapVaultKey(wrapped, accountKey, vaultId) {
   return handle(await unwrapWith(iv, ct, wrapper, aadVaultKey(vaultId), DATA_USAGES), 'vault');
 }
 
+// --- vault and meta envelopes --------------------------------------------------------------------
+
+export const ENVELOPE_FORMAT = 'keymesh';
+export const ENVELOPE_VERSION = 2;
+export const ENVELOPE_ALG = 'AES-GCM-256';
+const aadVault = (vaultId) => `keymesh/v2/vault/${vaultId}`;
+const aadVaultMeta = (vaultId) => `keymesh/v2/vault-meta/${vaultId}`;
+
+function parseJson(bytes, field) {
+  try {
+    return JSON.parse(utf8Decode(bytes, field));
+  } catch (e) {
+    throw e instanceof KeymeshError ? e : new KeymeshError('format', field);
+  }
+}
+
+async function sealBytes(vaultKey, iv, plaintext, aad) {
+  const key = readKey(vaultKey, ['vault'], 'vaultKey');
+  return toBase64(await aesEncrypt(key, iv, plaintext, utf8Encode(aad)));
+}
+
+async function sealVault(vault, vaultKey, iv) {
+  if (!isObject(vault)) throw new KeymeshError('invalid', 'vault');
+  checkVaultId(vault.vaultId);
+  readKey(vaultKey, ['vault'], 'vaultKey');
+  const gz = await gzip(utf8Encode(JSON.stringify(vault)));
+  const ct = await sealBytes(vaultKey, iv, gz, aadVault(vault.vaultId));
+  return { format: ENVELOPE_FORMAT, v: ENVELOPE_VERSION, alg: ENVELOPE_ALG, iv: toBase64(iv), ct };
+}
+
+export async function encryptVault(vault, vaultKey) {
+  assertSupported();
+  return sealVault(vault, vaultKey, randomBytes(IV_LEN));
+}
+
+export async function decryptVault(envelope, vaultKey, vaultId) {
+  assertSupported();
+  checkVaultId(vaultId);
+  const key = readKey(vaultKey, ['vault'], 'vaultKey');
+  if (!isObject(envelope)) throw new KeymeshError('format', 'envelope');
+  for (const [field, expected] of [['format', ENVELOPE_FORMAT], ['v', ENVELOPE_VERSION], ['alg', ENVELOPE_ALG]]) {
+    if (!(field in envelope)) throw new KeymeshError('format', field);
+    if (envelope[field] !== expected) throw new KeymeshError('unsupported', field);
+  }
+  const iv = readIv(envelope);
+  const ct = readCt(envelope);
+  const gz = await aesDecrypt(key, iv, ct, utf8Encode(aadVault(vaultId)));
+  const vault = parseJson(await gunzip(gz), 'vault');
+  // Authentic ciphertext whose content names another vault: refuse rather than return it (FR08).
+  if (!isObject(vault) || vault.vaultId !== vaultId) throw new KeymeshError('format', 'vaultId');
+  return vault;
+}
+
+async function sealVaultMeta(meta, vaultKey, vaultId, iv) {
+  checkVaultId(vaultId);
+  if (!isObject(meta)) throw new KeymeshError('invalid', 'meta');
+  const ct = await sealBytes(vaultKey, iv, utf8Encode(JSON.stringify(meta)), aadVaultMeta(vaultId));
+  return { iv: toBase64(iv), ct };
+}
+
+export async function encryptVaultMeta(meta, vaultKey, vaultId) {
+  assertSupported();
+  return sealVaultMeta(meta, vaultKey, vaultId, randomBytes(IV_LEN));
+}
+
+export async function decryptVaultMeta(envelope, vaultKey, vaultId) {
+  assertSupported();
+  checkVaultId(vaultId);
+  const key = readKey(vaultKey, ['vault'], 'vaultKey');
+  if (!isObject(envelope)) throw new KeymeshError('format', 'meta');
+  const iv = readIv(envelope);
+  const ct = readCt(envelope);
+  const meta = parseJson(await aesDecrypt(key, iv, ct, utf8Encode(aadVaultMeta(vaultId))), 'meta');
+  if (!isObject(meta)) throw new KeymeshError('format', 'meta');
+  return meta;
+}
+
+// --- account creation and unlock -----------------------------------------------------------------
+
+// The display name is UI copy; the app passes its own. Core only needs a well-formed meta.
+export const DEFAULT_VAULT_META = Object.freeze({ name: '', color: null, order: 0 });
+
+// Returns what gets stored (kdf, wrappedAccountKey, records) and what the session keeps in memory
+// (authKey for the server, key handles and the opened vault). Records have the shape unlock* reads.
+export async function createAccount(password, { meta = DEFAULT_VAULT_META } = {}) {
+  assertSupported();
+  const kdf = newKdf();
+  const { encKey, authKey } = await deriveFromPassword(password, kdf);
+  const accountKey = await generateAccountKey();
+  const wrappedAccountKey = await wrapAccountKey(accountKey, encKey);
+  const vaultId = newVaultId();
+  const vaultKey = await generateVaultKey();
+  const vault = createVault(vaultId);
+  const record = {
+    vaultId,
+    wrappedVaultKey: await wrapVaultKey(vaultKey, accountKey, vaultId),
+    meta: await encryptVaultMeta({ ...meta }, vaultKey, vaultId),
+    envelope: await encryptVault(vault, vaultKey),
+  };
+  return {
+    kdf,
+    authKey,
+    wrappedAccountKey,
+    records: [record],
+    accountKey,
+    vaults: [{ vaultId, ok: true, vault, meta: { ...meta }, vaultKey }],
+  };
+}
+
+async function openRecord(accountKey, record) {
+  if (!isObject(record)) throw new KeymeshError('format', 'record');
+  const { vaultId } = record;
+  checkVaultId(vaultId);
+  const vaultKey = await unwrapVaultKey(record.wrappedVaultKey, accountKey, vaultId);
+  const vault = await decryptVault(record.envelope, vaultKey, vaultId);
+  const meta = record.meta === undefined ? null : await decryptVaultMeta(record.meta, vaultKey, vaultId);
+  return { vaultId, ok: true, vault, meta, vaultKey };
+}
+
+// One bad vault never blocks the others (FR12): each failure is reported against its own vaultId.
+export async function unlockWithAccountKey(accountKey, records) {
+  assertSupported();
+  readKey(accountKey, ['account'], 'accountKey');
+  if (!Array.isArray(records)) throw new KeymeshError('invalid', 'records');
+  const vaults = [];
+  for (const record of records) {
+    try {
+      vaults.push(await openRecord(accountKey, record));
+    } catch (error) {
+      if (!(error instanceof KeymeshError)) throw error;
+      vaults.push({ vaultId: isObject(record) && typeof record.vaultId === 'string' ? record.vaultId : null, ok: false, error });
+    }
+  }
+  return { accountKey, vaults };
+}
+
+// Fully offline: a wrong password throws decrypt-failed here and no vault is touched.
+export async function unlockWithPassword(password, kdf, wrappedAccountKey, records) {
+  assertSupported();
+  const { encKey } = await deriveFromPassword(password, kdf);
+  const accountKey = await unwrapAccountKey(wrappedAccountKey, encKey);
+  return unlockWithAccountKey(accountKey, records);
+}
+
 // Test-only access to the building blocks (KATs, fixed-IV vectors). Not part of the contract in docs/09.
 export const _internal = Object.freeze({
   pbkdf2,
@@ -273,6 +418,10 @@ export const _internal = Object.freeze({
     handle(await aesKey(raw, kind === 'vault' ? DATA_USAGES : WRAP_USAGES, kind === 'account' || kind === 'vault'), kind),
   sealAccountKey,
   sealVaultKey,
+  sealVault,
+  sealVaultMeta,
+  sealBytes,
+  aadVault,
   IV_LEN,
   TAG_LEN,
   EMPTY,
