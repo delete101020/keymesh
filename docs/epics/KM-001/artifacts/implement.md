@@ -17,7 +17,7 @@
 
 ## 2. Progress
 
-Không chạy theo batch: cả 7 bước của plan làm trong một phiên.
+Không chạy theo batch: cả 7 bước của plan làm trong một phiên (revision 1). Revision 2 là lô sửa theo review (`review.md`, verdict `hold`), thêm ở hàng 5.
 
 | Batch | Plan steps | Commits | Tests run | State |
 |---|---|---|---|---|
@@ -25,6 +25,7 @@ Không chạy theo batch: cả 7 bước của plan làm trong một phiên.
 | 2 | 4 | `ff1b71e` | `npm test` 45/45, `npm run test:browser` 45/45 | done |
 | 3 | 5–6 | `1965f44`, `1774cc6` | `npm test` 72/72, `npm run test:browser` 72/72, `npm run vectors`, thử đột biến AC24 | done |
 | 4 | 7 | `c836343` | `npm test` 73/73, `npm run test:browser` 73/73, `npm run vectors` | done |
+| 5 (rev 2, sửa theo review) | review #1 (blocker), #2 (should-fix) | `604bccf`, `186457e` | `npm test` 75/75, `npm run test:browser` 75/75, `npm run vectors`, thử đột biến cho cả hai test mới | done |
 
 Trước bước 1 có thêm commit `c174d44` (xem §5, mục 1).
 
@@ -38,6 +39,8 @@ Trước bước 1 có thêm commit `c174d44` (xem §5, mục 1).
 | 4 | Toàn bộ model: hằng, id, mẫu 9 loại, project/env/item/field, `updateItem` kiểu "nộp bản nháp" (đồng hồ theo giá trị, lịch sử 20 bản), thùng rác/khôi phục/purge, `validateVault` trả danh sách `{ path, code, message }` | `src/public/js/core/model.js`, `test/model.test.js` |
 | 5 | Envelope vault (JSON → gzip → AES-GCM) và meta, kiểm `format`/`unsupported` trước khi giải mã, kiểm `vaultId` bên trong; `createAccount`, `unlockWithAccountKey` (lỗi theo từng vault), `unlockWithPassword` | `src/public/js/core/crypto.js`, `test/envelope.test.js` |
 | 6 | Bộ sinh vector độc lập (chỉ `node:crypto`/`node:zlib`, không import `src/`), `testkit/vectors.js` đã commit; test vector, round-trip, rò rỉ, hiệu năng; `t.diagnostic` cho shim để số đo hiện cả trên trình duyệt; `bigVault` trong helpers | `testkit/gen-vectors.mjs`, `testkit/vectors.js`, `test/{vectors,roundtrip,leak,perf}.test.js`, `testkit/helpers.js`, `testkit/browser/{node-test-shim.js,run.mjs}` |
+| rev 2 · review #1 | Cận trên `KDF_MAX_ITER = 6 000 000` (10× mức tối thiểu, owner chọn 2026-10-30). `readKdf` ném `KeymeshError('unsupported', 'kdf.iter')` khi `iter` > cận, trước khi chạy PBKDF2, nên `2**40` không còn ra `TypeError` trần và server xấu không làm treo máy khách quá vài giây. Ghi vào `docs/03` § Tham số cố định và `docs/09` § Lỗi, thao tác, hằng export | `src/public/js/core/crypto.js`, `test/keys.test.js`, `docs/03-data-model.md`, `docs/09-core-api.md` |
+| rev 2 · review #2 | `updateItem` chụp bản sao item trước khi sửa và khôi phục tại chỗ (giữ nguyên tham chiếu item) nếu draft ném lỗi giữa chừng; phần thân cũ thành `saveItem`. `patchClocked` (`updateProject`, `updateEnv`) kiểm hết giá trị rồi mới ghi. `docs/09` § Một lần lưu thêm quy tắc: thao tác sửa hoặc thành công trọn vẹn, hoặc ném lỗi mà không đổi gì | `src/public/js/core/model.js`, `test/model.test.js`, `docs/09-core-api.md` |
 | 7 | Hợp đồng lõi (thao tác, đầu vào/ra, lỗi, handle, quy tắc lưu, purge, vector, bảng epic → thao tác, lưu ý cho KM-002/KM-003); README thêm dòng 09 và lệnh test; test FR23 | `docs/09-core-api.md`, `README.md`, `test/model.test.js`, `testkit/helpers.js` |
 
 ## 4. Proofs executed
@@ -102,6 +105,28 @@ Spy trên `crypto.subtle.deriveBits` đếm 0 lần gọi cho hai `kdf` bị t�
 ```
 $ npm test
 ✔ AC03 FR01 iter = 599999 or name = Argon2id is unsupported before PBKDF2 runs (86.0972ms)
+```
+
+#### Revision 2: cận trên `kdf.iter` (review #1)
+
+Cùng spy `deriveBits`: bốn giá trị `KDF_MAX_ITER + 1`, `2**32`, `2**40`, `Number.MAX_SAFE_INTEGER` đều `unsupported` với 0 lần gọi PBKDF2; đúng `KDF_MAX_ITER` thì dẫn xuất chạy.
+
+```
+$ npm test
+✔ AC03 FR01 iter = 599999 or name = Argon2id is unsupported before PBKDF2 runs (86.0972ms)
+✔ AC03 FR01 kdf.iter above KDF_MAX_ITER (server-supplied) is unsupported before PBKDF2 runs (864.8468ms)
+ℹ tests 75
+ℹ pass 75
+ℹ fail 0
+```
+
+Thử đột biến: bỏ `|| kdf.iter > KDF_MAX_ITER` khỏi `readKdf`, chạy lại, rồi hoàn lại:
+
+```
+$ node --test test/keys.test.js
+✖ AC03 FR01 kdf.iter above KDF_MAX_ITER (server-supplied) is unsupported before PBKDF2 runs (822.8146ms)
+ℹ pass 11
+ℹ fail 1
 ```
 
 ### `KM-001-AC04`
@@ -206,6 +231,35 @@ $ npm test
 ✔ AC16 FR17 FR18 editing only notes moves only clock.notes, bumps rev, archives the old version (0.7003ms)
 ✔ AC16 FR18 changing only favorite, order-like fieldOrder or tags bumps rev without history (0.3728ms)
 ✔ AC16 FR17 editing one field value moves only that field at/dev (0.8549ms)
+```
+
+#### Revision 2: sửa thất bại không để lại gì (review #2)
+
+Bốn lần gọi bị từ chối trên cùng một vault: field hợp lệ rồi `type: 'bogus'` (đúng kịch bản của reviewer), field hợp lệ rồi field id lạ, `title` hợp lệ rồi `tags` sai kiểu, `updateProject` với `name` hợp lệ rồi `order` sai. Sau đó `JSON.stringify(vault)` bằng đúng trước, và `vault.items[0]` vẫn là cùng object.
+
+```
+$ npm test
+✔ FR17 a rejected updateItem or updateProject leaves the vault exactly as it was (0.8269ms)
+```
+
+Thử đột biến: `git stash` riêng `model.js` (về bản revision 1), chạy test model, rồi `stash pop`:
+
+```
+$ node --test test/model.test.js
+✖ FR17 a rejected updateItem or updateProject leaves the vault exactly as it was (2.8447ms)
+ℹ pass 22
+ℹ fail 1
+```
+
+Trình duyệt sau revision 2:
+
+```
+$ npm run test:browser
+HeadlessChrome/156.0.0.0
+tests 75  pass 75  fail 0  (13399 ms)
+
+$ npm run vectors
+testkit/vectors.js matches node:crypto
 ```
 
 ### `KM-001-AC17`
@@ -376,6 +430,8 @@ $ npm test
    - `updateItem({ fields })` coi field còn sống mà vắng mặt trong danh sách là bị xoá (`field.deletedAt`), và `file: null` là bỏ `file`.
 6. **`KeyHandle` có getter `kind`** (không phải thuộc tính riêng, nên `Object.keys` vẫn rỗng). `_internal` không bao giờ trả `CryptoKey` hay byte khoá. Nó chỉ có `importKey` (tạo handle từ byte cho vector) và các hàm `seal*` nhận IV cố định.
 
+7. **Revision 2 (sửa theo review).** Review #1: cận trên do owner chọn (6 000 000) qua câu hỏi trong phiên, vì reviewer để quyết định này cho owner. Review #2 vốn chỉ là should-fix cho `updateItem`; sửa luôn `patchClocked` vì cùng lỗi (ví dụ `updateProject({ name, order: 'x' })` đã đổi `name` rồi mới ném). Hai commit theo thứ tự finding; ở commit `604bccf` riêng lẻ, test FR23 fail vì `docs/09` chưa nêu `KDF_MAX_ITER` (được cập nhật ở `186457e`). Review #3 (`_internal`) và #4 (`design/README.md`) là note, không sửa.
+
 ## 6. Discovered work
 
 | Item | Where it went |
@@ -387,11 +443,14 @@ $ npm test
 | Chạy lõi khi wrangler bundle cho Workers | KM-005 (plan §4) |
 | Chạy cùng bộ test trên Safari/iOS, Firefox | Concern 6, KM-003/KM-004 |
 | `docs/05-sync.md` chưa có quy tắc gộp việc xoá project/env | Đã ghi cho KM-002 ở `docs/09` |
+| Review §8 đề xuất thêm vào `CLAUDE.md` § Phân lớp: mọi tham số số từ ngoài lõi phải có cận cả hai phía | Chưa sửa `CLAUDE.md` (quy ước dự án, thuộc owner); quy tắc nguyên tử của model đã vào `docs/09` |
+| Nâng `kdf.iter` ở epic sau phải ≤ `KDF_MAX_ITER`; muốn vượt thì phải tăng cận trong lõi trước khi server trả `iter` mới | Đã ghi ở `docs/03` § Tham số cố định |
 
 ## 7. Known gaps
 
 - **Cắt ngắn `ct` của envelope vault/meta.** Bảng 3.2 của spec ghi "`ct` bị cắt ngắn → `format`". Lỗi này chỉ phát hiện được bằng cấu trúc khi độ dài cố định (khoá bọc 48B) hoặc khi `ct` ≤ 16B. Một `ct` vault bị cắt nhưng vẫn dài hơn tag thì ra `decrypt-failed`. AC08 không đòi trường hợp này, nhưng reviewer nên xác nhận cách hiểu.
-- **`_internal` là export công khai.** Nó cho phép mã hoá với IV do bên gọi chọn. Dùng sai (dùng lại IV) thì phá AES-GCM. Hiện chỉ có quy ước "chỉ test" và ghi chú ở `docs/09`. Hướng khác là tách sang module chỉ dành cho test, nhưng khi đó test phải với vào phần private của `crypto.js`.
+- **Khôi phục `updateItem` dùng bản sao JSON.** Khi thất bại, các object field trong item được thay bằng bản sao (giá trị y hệt, khác tham chiếu); item và vault giữ nguyên tham chiếu. Bên gọi giữ tham chiếu tới một field cụ thể qua một lần lưu thất bại sẽ thấy object cũ. Khi thành công thì không có gì thay đổi so với revision 1.
+- **`_internal` là export công khai** (review note #3, không sửa). Nó cho phép mã hoá với IV do bên gọi chọn. Dùng sai (dùng lại IV) thì phá AES-GCM. Hiện chỉ có quy ước "chỉ test" và ghi chú ở `docs/09`. Hướng khác là tách sang module chỉ dành cho test, nhưng khi đó test phải với vào phần private của `crypto.js`.
 - **Độ mạnh của handle mờ** dựa vào private field của JS: code cùng realm không đọc được, nhưng devtools hoặc code đã chạy được trong trang thì có. Đây là giới hạn của mọi lõi chạy trong trình duyệt.
 - `decryptVault` chỉ kiểm `vaultId` bên trong, **không** gọi `validateVault`. Bên gọi (KM-003) nên tự kiểm sau khi mở.
 - `validateVault` không kiểm sâu nội dung từng bản `history` (chỉ kiểm là object và số lượng ≤ 20). Nó cũng không bắt `scopes` trỏ tới env không tồn tại, vì spec chỉ đòi tối thiểu.
