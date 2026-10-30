@@ -1,0 +1,31 @@
+{
+  "id": "KM-011",
+  "title": "Tuỳ chọn M6: đánh giá và xếp ưu tiên",
+  "description": "Chỉ ghi lại vấn đề, chưa code: đánh giá các mục tuỳ chọn và P3 còn lại — Argon2id (WASM, nâng `kdf_name`), recovery key in ra giấy, xoay khoá vault/tài khoản, mật khẩu riêng cho từng vault, chuyển/sao chép item giữa vault, share target Android, export plaintext, tag/yêu thích. Kết quả là danh sách mục đáng làm, mỗi mục thành một epic riêng.",
+  "pipeline": "KM-011",
+  "agent": null,
+  "agents": [
+    "aidlc-native-originator"
+  ],
+  "currentStep": 0,
+  "status": "in_progress",
+  "strict_mode": true,
+  "tags": [
+    "RESEARCH"
+  ],
+  "createdAt": "2026-10-30T04:44:57.000Z",
+  "stepStates": [
+    {
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "status": "in_progress",
+      "revision": 1,
+      "runStatus": "awaiting_work",
+      "startedAt": "2026-10-30T04:44:57.000Z",
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    }
+  ],
+  "updatedAt": "2026-10-30T04:44:57.000Z"
+}

@@ -1,0 +1,91 @@
+{
+  "id": "KM-010",
+  "title": "Backup, bản sao file và export Bitwarden",
+  "description": "Tải backup `keymesh-backup` đã mã hoá (một hoặc mọi vault) và import lại backup v2 vào vault đang chọn hoặc vault mới; bản sao tự động chỉ ghi ra file trên Chromium desktop, báo khi cần cấp lại quyền; export Bitwarden JSON dạng tổ chức theo từng vault (mỗi `Project/env` là một collection, item dùng chung có nhiều `collectionIds`, field `otp` → `login.totp`), phải nhập lại mật khẩu trước khi export.",
+  "pipeline": "KM-010",
+  "agent": null,
+  "agents": [
+    "aidlc-native-originator",
+    "aidlc-native-product-owner",
+    "aidlc-native-engineer",
+    "aidlc-native-engineer",
+    "aidlc-native-verifier",
+    "aidlc-native-reviewer"
+  ],
+  "currentStep": 0,
+  "status": "in_progress",
+  "strict_mode": true,
+  "tags": [
+    "DATA"
+  ],
+  "createdAt": "2026-10-30T04:44:57.000Z",
+  "stepStates": [
+    {
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "status": "in_progress",
+      "revision": 1,
+      "runStatus": "awaiting_work",
+      "startedAt": "2026-10-30T04:44:57.000Z",
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-product-owner",
+      "name": "spec",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "build-plan",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "implement",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-verifier",
+      "name": "verify",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-reviewer",
+      "name": "review",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    }
+  ],
+  "updatedAt": "2026-10-30T04:44:57.000Z"
+}

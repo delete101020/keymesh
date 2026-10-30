@@ -3,3 +3,9 @@ node_modules/
 .wrangler/
 .dev.vars
 *.local
+
+# CodeGraph index (local to each machine)
+.codegraph/
+
+# Per-checkout AIDLC settings (epic_id_prefix, active/watched epics) — never shared
+.aidlc/user.yaml

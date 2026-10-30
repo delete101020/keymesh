@@ -1,0 +1,92 @@
+{
+  "id": "KM-001",
+  "title": "Lõi mật mã và model vault v2",
+  "description": "Tách lõi khỏi v1 (`envvault.html`) thành module `crypto` và `model` không phụ thuộc UI: PBKDF2 600k → HKDF (enc/auth/prf), khoá phân tầng encKey → accountKey → vaultKey, envelope AES-GCM-256 có AAD; model vault v2 (project, env, item 9 loại, field kind gồm cả `otp` và `field.file`, clock, history 20 bản, tombstone `deletedAt`, id có tiền tố); migrate v1 → v2 giữ id cũ. Unit test bằng `node --test`. Chưa có UI, chưa có server.",
+  "pipeline": "KM-001",
+  "agent": null,
+  "agents": [
+    "aidlc-native-originator",
+    "aidlc-native-product-owner",
+    "aidlc-native-engineer",
+    "aidlc-native-engineer",
+    "aidlc-native-verifier",
+    "aidlc-native-reviewer"
+  ],
+  "currentStep": 0,
+  "status": "in_progress",
+  "strict_mode": true,
+  "tags": [
+    "CRYPTO",
+    "MODEL"
+  ],
+  "createdAt": "2026-10-30T04:44:57.000Z",
+  "stepStates": [
+    {
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "status": "in_progress",
+      "revision": 1,
+      "runStatus": "awaiting_work",
+      "startedAt": "2026-10-30T04:44:57.000Z",
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-product-owner",
+      "name": "spec",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "build-plan",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "implement",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-verifier",
+      "name": "verify",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-reviewer",
+      "name": "review",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    }
+  ],
+  "updatedAt": "2026-10-30T04:44:57.000Z"
+}

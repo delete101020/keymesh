@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 3,
+  "runId": "KM-009",
+  "pipelineId": "KM-009",
+  "context": {
+    "epic": "KM-009"
+  },
+  "startedAt": "2026-10-30T04:44:57.000Z",
+  "updatedAt": "2026-10-30T04:44:57.000Z",
+  "currentStepIdx": 0,
+  "status": "running",
+  "steps": [
+    {
+      "stepIdx": 0,
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "revision": 1,
+      "status": "awaiting_work",
+      "startedAt": "2026-10-30T04:44:57.000Z",
+      "artifactsProduced": []
+    },
+    {
+      "stepIdx": 1,
+      "agent": "aidlc-native-product-owner",
+      "name": "spec",
+      "revision": 1,
+      "status": "pending",
+      "artifactsProduced": []
+    },
+    {
+      "stepIdx": 2,
+      "agent": "aidlc-native-engineer",
+      "name": "build-plan",
+      "revision": 1,
+      "status": "pending",
+      "artifactsProduced": []
+    },
+    {
+      "stepIdx": 3,
+      "agent": "aidlc-native-engineer",
+      "name": "implement",
+      "revision": 1,
+      "status": "pending",
+      "artifactsProduced": []
+    },
+    {
+      "stepIdx": 4,
+      "agent": "aidlc-native-verifier",
+      "name": "verify",
+      "revision": 1,
+      "status": "pending",
+      "artifactsProduced": []
+    },
+    {
+      "stepIdx": 5,
+      "agent": "aidlc-native-reviewer",
+      "name": "review",
+      "revision": 1,
+      "status": "pending",
+      "artifactsProduced": []
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 3,
+  "runId": "KM-011",
+  "pipelineId": "KM-011",
+  "context": {
+    "epic": "KM-011"
+  },
+  "startedAt": "2026-10-30T04:44:57.000Z",
+  "updatedAt": "2026-10-30T04:44:57.000Z",
+  "currentStepIdx": 0,
+  "status": "running",
+  "steps": [
+    {
+      "stepIdx": 0,
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "revision": 1,
+      "status": "awaiting_work",
+      "startedAt": "2026-10-30T04:44:57.000Z",
+      "artifactsProduced": []
+    }
+  ]
+}
