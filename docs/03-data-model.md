@@ -208,7 +208,7 @@ Chốt ở KM-001 (build-plan, originator xác nhận 2026-10-30). Khi đã có 
 | Tham số | Giá trị |
 |---|---|
 | Đầu vào PBKDF2 | Byte UTF-8 của master password, không chuẩn hoá Unicode |
-| `masterKey` | 32B, đầu ra PBKDF2-HMAC-SHA256 với `kdf.salt` (16B) và `kdf.iter` (≥ 600 000) |
+| `masterKey` | 32B, đầu ra PBKDF2-HMAC-SHA256 với `kdf.salt` (16B) và `kdf.iter` (600 000 ≤ `iter` ≤ 6 000 000; ngoài khoảng này là `unsupported` trước khi chạy PBKDF2, vì `kdf` do server trả về lúc đăng nhập) |
 | HKDF | HKDF-SHA256, **salt rỗng** (theo RFC 5869 §2.2 tương đương HashLen byte 0), đầu ra L = **32B** cho cả `encKey`, `authKey`, `prfKey` |
 | `info` của HKDF | Byte UTF-8 của `keymesh/enc`, `keymesh/auth`, `keymesh/prf` |
 | IKM của `prfKey` | Đúng 32B đầu ra PRF do WebAuthn trả về |

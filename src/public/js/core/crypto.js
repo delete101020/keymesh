@@ -106,6 +106,9 @@ const handle = (key, kind) => new KeyHandle(HANDLE_TOKEN, key, kind);
 
 export const KDF_NAME = 'PBKDF2-SHA256';
 export const KDF_MIN_ITER = 600000;
+// kdf comes back from the server at login, so it is untrusted: an unbounded iter would hang the
+// client, or overflow WebCrypto's uint32 and throw a bare TypeError.
+export const KDF_MAX_ITER = 6000000;
 const SALT_LEN = 16;
 const WRAPPED_KEY_CT_LEN = KEY_BITS / 8 + TAG_LEN;
 const VAULT_ID_RE = /^[0-9a-f]{16}$/;
@@ -149,7 +152,7 @@ function readKdf(kdf) {
   if (!isObject(kdf) || typeof kdf.name !== 'string') throw new KeymeshError('format', 'kdf');
   if (kdf.name !== KDF_NAME) throw new KeymeshError('unsupported', 'kdf.name');
   if (!Number.isSafeInteger(kdf.iter)) throw new KeymeshError('format', 'kdf.iter');
-  if (kdf.iter < KDF_MIN_ITER) throw new KeymeshError('unsupported', 'kdf.iter');
+  if (kdf.iter < KDF_MIN_ITER || kdf.iter > KDF_MAX_ITER) throw new KeymeshError('unsupported', 'kdf.iter');
   const salt = fromBase64(kdf.salt, 'kdf.salt');
   if (salt.length !== SALT_LEN) throw new KeymeshError('format', 'kdf.salt');
   return { iter: kdf.iter, salt };

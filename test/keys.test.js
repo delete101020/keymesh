@@ -12,6 +12,7 @@ import {
   unwrapVaultKey,
   newVaultId,
   KDF_MIN_ITER,
+  KDF_MAX_ITER,
   _internal,
 } from '../src/public/js/core/crypto.js';
 import { fromBase64, toHex, randomBytes } from '../src/public/js/core/bytes.js';
@@ -68,6 +69,27 @@ test('AC03 FR01 iter = 599999 or name = Argon2id is unsupported before PBKDF2 ru
     assert.equal(calls, 0);
     await deriveFromPassword('pw', KDF);
     assert.ok(calls > 0, 'spy must see a real derivation');
+  } finally {
+    delete subtle.deriveBits;
+  }
+});
+
+test('AC03 FR01 kdf.iter above KDF_MAX_ITER (server-supplied) is unsupported before PBKDF2 runs', async () => {
+  assert.equal(KDF_MAX_ITER, 6000000);
+  const subtle = globalThis.crypto.subtle;
+  let calls = 0;
+  const original = subtle.deriveBits;
+  subtle.deriveBits = function (...args) {
+    calls++;
+    return original.apply(this, args);
+  };
+  try {
+    for (const iter of [KDF_MAX_ITER + 1, 2 ** 32, 2 ** 40, Number.MAX_SAFE_INTEGER]) {
+      await assert.rejects(deriveFromPassword('pw', { ...KDF, iter }), hasCode('unsupported'));
+    }
+    assert.equal(calls, 0);
+    await deriveFromPassword('pw', { ...KDF, iter: KDF_MAX_ITER });
+    assert.ok(calls > 0, 'the bound itself is accepted');
   } finally {
     delete subtle.deriveBits;
   }
