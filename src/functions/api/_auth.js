@@ -1,6 +1,7 @@
 import { fromBase64, toBase64 } from '../../public/js/core/bytes.js';
 import { KDF_MIN_ITER, KDF_NAME } from '../../public/js/core/crypto.js';
 import { ApiError, emptyResponse, jsonResponse, parseObject, readBody, readJsonObject } from './_http.js';
+import { assertNotLocked, attemptKeys, clearUserCounter, recordFailure, removeStale } from './_rate-limit.js';
 import { LABEL_FAKE_AUTH, LABEL_FAKE_SALT, hashAuthKey, hashToken, labeledHmac, newId, newStamp, newToken, requireServerSecret, safeEqual, safeEqualStrings } from './_secrets.js';
 import { checkAuthKey, checkDeviceName, checkKdf, checkNewVault, checkRowFits, checkUsername, checkWrappedAccountKey } from './_validate.js';
 
@@ -87,23 +88,30 @@ export async function register({ request, env }) {
   return jsonResponse(201, { userId, token: session.token, expiresAt: session.expiresAt, vault: { id: vault.id, version: 1, metaVersion: 1 } });
 }
 
-export async function login({ request, env }) {
+export async function login({ request, env, waitUntil }) {
   const body = await readJsonObject(request);
   checkUsername(body.username);
   checkAuthKey(body.authKey);
   checkDeviceName(body.deviceName);
   const secret = requireServerSecret(env);
 
+  const now = Date.now();
+  waitUntil(removeStale(env.DB, now));
+  const keys = await attemptKeys(request, secret, body.username);
+  await assertNotLocked(env.DB, keys, now);
+
   const user = await env.DB.prepare('SELECT id, kdf_name, kdf_iter, kdf_salt, auth_hash, wrapped_account_key, security_stamp FROM dt_user WHERE username = ?').bind(body.username).first();
   // Both branches hash and compare: an unknown username does the same work against a keyed fake (FR16).
   const fake = await labeledHmac(secret, LABEL_FAKE_AUTH, folded(body.username));
   const expected = user ? fromBase64(user.auth_hash, 'auth_hash') : fake;
   const same = safeEqual(await hashAuthKey(body.authKey), expected);
-  if (!user || !same) throw new ApiError('invalid_credentials');
+  if (!user || !same) {
+    await recordFailure(env.DB, keys, now);
+    throw new ApiError('invalid_credentials');
+  }
 
-  const now = Date.now();
   const session = await newSession(env.DB, { userId: user.id, stamp: user.security_stamp, deviceName: body.deviceName, now });
-  await session.statement.run();
+  await env.DB.batch([session.statement, clearUserCounter(env.DB, keys)]);
   return jsonResponse(200, {
     userId: user.id,
     token: session.token,
