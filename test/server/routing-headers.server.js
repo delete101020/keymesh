@@ -1,7 +1,7 @@
 // Origin, routing, response headers, error shape and body limit. Every request goes to a real wrangler.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { ORIGIN, createAccount, registerBody, startServer } from '../../testkit/wrangler-server.mjs';
+import { ORIGIN, createAccount, newAuthKey, newBlob, newVault, registerBody, startServer, uniqueIp } from '../../testkit/wrangler-server.mjs';
 
 let server;
 before(async () => {
@@ -121,4 +121,86 @@ test('KM-005 AC09 FR05 D1 refusing a value as too big is 413, not 500', async ()
   server.exec('DROP TRIGGER too_big');
   assert.equal(response.status, 413);
   assert.equal(response.body.error, 'too_large');
+});
+
+// One real request per status code. The 429 and 500 need state, which they build here.
+async function everyResponse() {
+  const account = await createAccount(server);
+  const { token, vaultId } = account;
+  const ip = uniqueIp();
+  const out = {};
+  out[200] = await server.call('GET', '/api/vaults', { token });
+  out[201] = await server.call('POST', '/api/vaults', { token, json: newVault() });
+  out[304] = await server.call('GET', `/api/vaults/${vaultId}?since=1`, { token });
+  out[400] = await server.call('GET', '/api/vaults/not-an-id', { token });
+  out[401] = await server.call('GET', '/api/vaults');
+  out[403] = await server.call('GET', '/api/vaults', { origin: 'https://evil.example' });
+  out[404] = await server.call('GET', '/api/nope');
+  out[409] = await server.call('PUT', `/api/vaults/${vaultId}`, { token, json: { baseVersion: 77, blob: newBlob() } });
+  out[413] = await server.call('POST', '/api/login', { raw: ' '.repeat(2_000_001) });
+  for (let i = 0; i < 5; i++) await server.call('POST', '/api/login', { json: { username: account.username, authKey: newAuthKey() }, ip });
+  out[429] = await server.call('POST', '/api/login', { json: { username: account.username, authKey: account.authKey }, ip });
+  server.exec(`CREATE TRIGGER fail_all BEFORE INSERT ON dt_vault BEGIN SELECT RAISE(ABORT, 'storage down'); END;`);
+  out[500] = await server.call('POST', '/api/vaults', { token, json: newVault() });
+  server.exec('DROP TRIGGER fail_all');
+  out[204] = await server.call('POST', '/api/logout', { token });
+  return out;
+}
+
+test('KM-005 AC07 FR03 all twelve kinds of response carry no-store and nosniff', async () => {
+  const responses = await everyResponse();
+  assert.deepEqual(Object.keys(responses).map(Number).sort((a, b) => a - b), [200, 201, 204, 304, 400, 401, 403, 404, 409, 413, 429, 500]);
+  for (const [status, response] of Object.entries(responses)) {
+    assert.equal(response.status, Number(status));
+    assertSafeHeaders(response, status);
+  }
+  for (const status of [204, 304]) assert.equal(responses[status].text, '', `${status} has no body`);
+});
+
+test('KM-005 AC08 FR04 every error is { error, message }, with a message fixed per code and free of input', async () => {
+  const MARK = 'INPUTMARKER';
+  const account = await createAccount(server);
+  const { token, vaultId } = account;
+  const ip = uniqueIp();
+  const post = (path, json) => server.call('POST', path, { token, json });
+  const blob = newBlob();
+  const cases = {
+    bad_request: () => server.call('GET', `/api/prelogin?username=${MARK}%20bad`),
+    invalid_id: () => server.call('GET', `/api/vaults/${MARK}`, { token }),
+    invalid_kdf: () => post('/api/register', registerBody({ kdf: { name: MARK, iter: 1, salt: MARK } })),
+    invalid_envelope: () => server.call('PUT', `/api/vaults/${vaultId}`, { token, json: { baseVersion: 1, blob: { format: MARK } } }),
+    unauthorized: () => server.call('GET', '/api/vaults', { token: MARK }),
+    invalid_credentials: () => post('/api/login', { username: `${MARK}-nobody`, authKey: newAuthKey() }),
+    registration_closed: () => post('/api/register', registerBody({ registrationToken: MARK })),
+    forbidden_origin: () => server.call('GET', '/api/nope', { origin: `https://${MARK}.example` }),
+    not_found: () => server.call('GET', `/api/${MARK}`),
+    username_taken: () => post('/api/register', registerBody({ username: account.username, deviceName: MARK })),
+    vault_exists: () => post('/api/vaults', newVault({ id: vaultId })),
+    too_large: () => server.call('POST', '/api/login', { raw: MARK.repeat(250_000) }),
+  };
+  const seen = new Map();
+  const check = (response, code, keys = ['error', 'message']) => {
+    assert.equal(response.body?.error, code);
+    assert.deepEqual(Object.keys(response.body).sort(), [...keys].sort(), code);
+    assert.equal(typeof response.body.message, 'string');
+    assert.ok(response.body.message.length > 0);
+    assert.ok(!response.text.includes(MARK), `${code} echoes input`);
+    assert.doesNotMatch(response.body.message, /\bat \S+:\d+|SELECT|INSERT|UPDATE|sqlite|D1_/i, code);
+    seen.set(code, response.body.message);
+  };
+  for (const [code, send] of Object.entries(cases)) check(await send(), code);
+
+  for (let i = 0; i < 5; i++) await server.call('POST', '/api/login', { json: { username: `${MARK}-locked`, authKey: newAuthKey() }, ip });
+  check(await server.call('POST', '/api/login', { json: { username: `${MARK}-locked`, authKey: newAuthKey() }, ip }), 'too_many_attempts');
+
+  const conflict = await server.call('PUT', `/api/vaults/${vaultId}`, { token, json: { baseVersion: 99, blob } });
+  check(conflict, 'version_conflict', ['error', 'message', 'version', 'updatedAt', 'blob']);
+
+  server.exec(`CREATE TRIGGER fail_all BEFORE INSERT ON dt_vault BEGIN SELECT RAISE(ABORT, 'INPUTMARKER storage down'); END;`);
+  const broken = await post('/api/vaults', newVault());
+  server.exec('DROP TRIGGER fail_all');
+  check(broken, 'internal');
+
+  assert.equal(seen.size, 15);
+  assert.equal(new Set(seen.values()).size, 15, 'each code has its own fixed message');
 });
