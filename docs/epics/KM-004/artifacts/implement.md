@@ -410,7 +410,7 @@ Xem `test/settings.test.js`, `test/vault-query.test.js`, `mobile.e2e.js` ở tr�
 | Màn đa nhiệm lộ nội dung; web không có cách chặn đã biết | Originator chấp nhận cho M2 (intent §6); tự che lại ở `docs/epics/KM-012/KM-012.md` |
 | Chrome đề nghị lưu master password vào Google Password Manager (thấy trên giả lập, sau khi mở khoá) | Originator quyết giữ nguyên (2026-11-01), để ai dùng trình quản lý mật khẩu vẫn dùng được |
 | Trên trang chủ hẹp, "Tất cả" vẫn tô như đang chọn dù chưa vào list | Chưa làm; nhỏ, có từ KM-003 |
-| iOS đề nghị tạo và lưu "Strong Password" ở ô master password và cả ô secret, ô OTP của item; sau khi mở khoá hỏi "Save Password?". Cùng loại với việc của Chrome ở trên | Master password: giữ nguyên. Ô OTP: originator muốn chặn, **chưa có cách làm được** (bảng dưới) |
+| iOS đề nghị tạo và lưu "Strong Password" ở ô master password và cả ô secret, ô OTP của item; sau khi mở khoá hỏi "Save Password?". Cùng loại với việc của Chrome ở trên | Master password: giữ nguyên. Ô OTP: chưa có cách chặn mà vẫn che được secret (bảng dưới); originator chấp nhận để nguyên (2026-11-01) |
 | Trên màn khoá iOS, bàn phím tự bật che banner "Tải lại" nên phải ẩn bàn phím mới thấy | Chưa làm; nhỏ |
 | Trên WebKit, rời app trước khi chạm lại thì secret còn trong clipboard, không có cách xoá từ web | Ghi ở `docs/04`; xem xét cùng khi kiểm máy thật |
 | Kiểm `_headers` trên Cloudflare | `docs/epics/KM-005/KM-005.md` |
@@ -434,7 +434,7 @@ Xem `test/settings.test.js`, `test/vault-query.test.js`, `mobile.e2e.js` ở tr�
 > *What a reviewer should look at hardest.*
 
 - **Màn đa nhiệm vẫn lộ secret đang hiện, trên cả Android và iOS.** Originator chấp nhận cho M2 vì chỉ dùng dữ liệu thử (intent §6), nên tiêu chí `AC06` đã đổi chứ lỗ hổng không biến mất. Phải xem lại trước khi cất secret thật trên điện thoại (KM-012).
-- **iOS vẫn đề nghị Strong Password ở ô OTP của item có ô Password.** Sheet có "Not Now" và mỗi lần tải trang chỉ hiện một lần. "Save & Fill" chưa thử nên chưa biết nó điền vào ô nào.
+- **iOS vẫn đề nghị Strong Password ở ô OTP của item có ô Password; originator chấp nhận (2026-11-01).** Sheet có "Not Now" và mỗi lần tải trang chỉ hiện một lần. "Save & Fill" chưa thử nên chưa biết nó điền vào ô nào.
 - **Bản sửa clipboard mới kiểm trên iOS và Chrome.** Chưa kiểm lại trên giả lập Android và Safari, Firefox desktop bằng tay. Giá trị đọc lại khi copy trên Android vẫn chưa xác nhận.
 - **`ui/nav-history.js` nhận diện iOS bằng `'standalone' in navigator`.** E2E chỉ giả lập thuộc tính này trên Chrome; hành vi thật đã kiểm một lần trên iOS 18.6.
 - **`AC03`: năm mục KM-003 chưa chạy.**
