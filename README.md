@@ -30,7 +30,7 @@ Chỉ dùng dữ liệu thử: dữ liệu nằm trên đúng một trình duy�
 
 ## Chạy test
 
-Không có dependency nào để cài; cần Node ≥ 20.
+Cần Node 24.22.1 (`.nvmrc`). `npm test` không cần cài gì; chỉ `test:server` và `dev:server` cần `npm install` (`wrangler`, không cần tài khoản Cloudflare).
 
 ```bash
 npm test               # node --test trên test/*.test.js
@@ -38,9 +38,20 @@ npm run test:browser   # cùng bộ test trong Chrome/Edge headless (đặt CHRO
 npm run vectors        # tính lại testkit/vectors.js bằng node:crypto và so với bản đã commit
 npm run sw-version     # ghi VERSION và danh sách file vào sw.js; npm test đỏ nếu quên sau khi đổi file trong src/public
 BROWSER_APP=Safari npm run test:browser   # hoặc Firefox: mở app đó trên macOS thay vì Chrome headless
+npm run test:server    # API trên wrangler pages dev thật, D1 cục bộ; mỗi tệp test tự có server và dữ liệu tạm
 ```
 
-`npm run test:e2e` chạy app thật trên Chrome qua DevTools Protocol, không cần package nào (cần Node ≥ 22). Đặt `KEYMESH_SHOTS=<thư mục>` để lưu ảnh chụp màn hình, `CHROME_PATH` nếu Chrome nằm chỗ khác.
+`npm run test:e2e` chạy app thật trên Chrome qua DevTools Protocol, không cần package nào. Đặt `KEYMESH_SHOTS=<thư mục>` để lưu ảnh chụp màn hình, `CHROME_PATH` nếu Chrome nằm chỗ khác.
+
+## Chạy server cục bộ
+
+`npm run dev:server` áp migration rồi chạy app kèm API ở `http://127.0.0.1:8788/`, dữ liệu nằm trong `src/.wrangler/`. Cần tệp `src/.dev.vars` (đã ở `.gitignore`, chỉ dùng giá trị thử):
+
+```
+ALLOWED_ORIGINS=http://127.0.0.1:8788
+REGISTRATION_TOKEN=<ít nhất 32 ký tự>
+SERVER_SECRET=<chuỗi ngẫu nhiên dài>
+```
 
 ## Ghi công
 

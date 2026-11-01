@@ -28,7 +28,7 @@ sequenceDiagram
   Note over C: Vault A có thay đổi cục bộ (dirty)
   C->>S: PUT /api/vaults/A {baseVersion: 7, blob}
   alt version của A trên server = 7
-    S->>S: lưu snapshot v7, ghi blob, version = 8
+    S->>S: ghi blob, version = 8 (từ KM-009: lưu snapshot v7 trước)
     S-->>C: 200 {version: 8}
     C->>C: base = local, baseVersion = 8, dirty = false
   else server đã ở v9 (thiết bị khác đã push)
@@ -164,6 +164,8 @@ Project/env không có đồng hồ cho `deletedAt`. Chỉ một bên đổi `de
 
 ## Server: so sánh version (compare-and-swap)
 
+Từ KM-005 chỉ có câu `UPDATE` (kèm `RETURNING`), không ghi snapshot. KM-009 thêm hai câu còn lại vào cùng `batch()`:
+
 ```sql
 -- trong một batch()
 INSERT INTO dt_vault_snapshot (vault_id, version, blob, created_at)
@@ -178,6 +180,6 @@ D1 xử lý tuần tự các lệnh ghi trên một database, nên `WHERE versio
 
 ## Khôi phục snapshot
 
-Người dùng chọn một vault, xem danh sách `dt_vault_snapshot` của vault đó (thời gian, thiết bị, kích thước) rồi chọn một bản. Client tải về và giải mã để xem trước. Khi bấm khôi phục, client **không ghi đè mù**: nó coi snapshot như một bản `remote` mới và PUT lên như một thay đổi bình thường, nên version vẫn tăng tiếp và bản hiện tại trở thành một snapshot khác.
+Có từ KM-009. Người dùng chọn một vault, xem danh sách `dt_vault_snapshot` của vault đó (thời gian, thiết bị, kích thước) rồi chọn một bản. Client tải về và giải mã để xem trước. Khi bấm khôi phục, client **không ghi đè mù**: nó coi snapshot như một bản `remote` mới và PUT lên như một thay đổi bình thường, nên version vẫn tăng tiếp và bản hiện tại trở thành một snapshot khác.
 
 Để lấy lại một item đã xoá, nên dùng **thùng rác** trước; snapshot là lưới an toàn cuối cùng cho cả vault.

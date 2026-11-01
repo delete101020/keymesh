@@ -44,7 +44,7 @@ thư mục gốc mới ngoài cây đó.
 
 ### Ngôn ngữ và phụ thuộc
 
-- JavaScript thuần, ES module (`"type": "module"`), Node ≥ 20. Không TypeScript, không bundler, không
+- JavaScript thuần, ES module (`"type": "module"`), Node 24.22.1 (`.nvmrc`, `engines`). Không TypeScript, không bundler, không
   bước build cho `public/` — file trong repo là file chạy trên trình duyệt.
 - **Không phụ thuộc bên thứ ba** ở runtime lẫn test: `dependencies` rỗng, chỉ dùng WebCrypto, API trình
   duyệt và module `node:*`. Ngoại lệ duy nhất: `wrangler` làm devDependency (từ KM-005).
@@ -74,7 +74,9 @@ Chiều phụ thuộc chỉ đi xuống: `ui/` → `app.js` → `store.js` / `sy
 - Chỉ dùng `node:test` và `node:assert/strict`. Chạy bằng `npm test`; lõi còn phải pass
   `npm run test:browser`. Implement chưa xong khi `npm test` chưa xanh.
 - Vector trong `testkit/vectors.js` được sinh độc lập rồi commit; không sinh lại để "cho test pass".
-- Server test bằng môi trường local của wrangler (D1 local), không gọi Cloudflare thật.
+- Server test bằng môi trường local của wrangler (D1 local), không gọi Cloudflare thật: `npm run test:server`,
+  tệp `test/server/*.server.js`. Phần server chưa xong khi lệnh này chưa xanh. Bộ này không nằm trong `npm test`,
+  để `npm test` vẫn chạy được khi chưa cài gì.
 
 ### Bảo mật phía client (xem `docs/04-security.md`)
 

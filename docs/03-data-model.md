@@ -320,7 +320,7 @@ Theo cách đặt tên của ecm-hexa-be: tên bảng là **`<prefix>_<danh từ
 | `dt_` | Dữ liệu nghiệp vụ: user, vault, phiên đăng nhập, nhật ký | `dt_user`, `dt_vault`, `dt_vault_snapshot`, `dt_session`, `dt_audit_log` |
 | `sys_` | Trạng thái vận hành của hệ thống, không phải dữ liệu người dùng | `sys_auth_attempt` |
 | `bs_` | Danh mục, dữ liệu gốc | Chưa có |
-| `cfg_` | Cấu hình lưu trong DB | Chưa có; cấu hình hiện là biến môi trường (`ALLOWED_ORIGINS`, `REGISTRATION_TOKEN`) |
+| `cfg_` | Cấu hình lưu trong DB | Chưa có; cấu hình hiện là biến môi trường (`ALLOWED_ORIGINS`, `REGISTRATION_TOKEN`, `SERVER_SECRET`) |
 
 - Index: `<bảng>_<cột>_idx`, ví dụ `dt_vault_user_id_idx`.
 - Cột vẫn dùng `created_at`/`updated_at` (epoch ms, `INTEGER`).
@@ -357,7 +357,7 @@ CREATE TABLE dt_vault (
 );
 CREATE INDEX dt_vault_user_id_idx ON dt_vault(user_id);
 
-CREATE TABLE dt_vault_snapshot (                 -- giữ N bản gần nhất của mỗi vault để khôi phục khi lỡ tay
+CREATE TABLE dt_vault_snapshot (                 -- giữ N bản gần nhất của mỗi vault để khôi phục khi lỡ tay; chỉ được ghi từ KM-009
   vault_id            TEXT NOT NULL REFERENCES dt_vault(id) ON DELETE CASCADE,
   version             INTEGER NOT NULL,
   blob                TEXT NOT NULL,
@@ -378,13 +378,13 @@ CREATE TABLE dt_session (
 CREATE INDEX dt_session_user_id_idx ON dt_session(user_id);
 
 CREATE TABLE sys_auth_attempt (                  -- rate limit đăng nhập
-  key                 TEXT PRIMARY KEY,          -- 'u:<username>' hoặc 'ip:<hash ip>'
+  key                 TEXT PRIMARY KEY,          -- base64(HMAC(SERVER_SECRET, nhãn riêng + username chữ thường hoặc IP)); không đọc ngược được
   count               INTEGER NOT NULL,
   window_start        INTEGER NOT NULL,
   locked_until        INTEGER
 );
 
-CREATE TABLE dt_audit_log (
+CREATE TABLE dt_audit_log (                      -- chỉ được ghi từ KM-009
   id                  INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id             TEXT,
   session_id          TEXT,
@@ -401,7 +401,7 @@ CREATE INDEX dt_audit_log_user_id_at_idx ON dt_audit_log(user_id, at DESC);
 ### Ghi chú
 
 - **Mọi truy vấn trên `dt_vault` và `dt_vault_snapshot` đều lọc theo `user_id` của session**, kể cả khi đã có `vault_id`, để một user không đọc hay ghi được vault của user khác dù đoán được id.
-- **Giới hạn D1:** một dòng hoặc giá trị tối đa khoảng 2 MB. Vault cá nhân sau khi nén và mã hoá thường dưới 200 KB. Client cảnh báo khi blob vượt 1 MB; nếu thật sự cần thì tách bớt sang vault khác hoặc chia blob thành nhiều chunk.
-- **Số snapshot:** giữ 30 bản gần nhất **cho mỗi vault**. Khi PUT, chép bản cũ sang `dt_vault_snapshot` rồi xoá bớt bản cũ trong cùng một `batch()`.
-- **Những gì server biết:** username, số vault, kích thước và thời điểm sửa của từng vault, thiết bị, IP (dạng hash, dùng cho rate limit). Server **không** biết tên vault, tên project, env, item hay số lượng item.
+- **Giới hạn D1:** một dòng hoặc giá trị tối đa 2 000 000 byte. D1 cục bộ không áp giới hạn này, nên server tự tính kích thước dòng trước khi ghi và trả `413` nếu vượt (KM-005 FR05). Vault cá nhân sau khi nén và mã hoá thường dưới 200 KB. Client cảnh báo khi blob vượt 1 MB; nếu thật sự cần thì tách bớt sang vault khác hoặc chia blob thành nhiều chunk.
+- **Số snapshot (từ KM-009; KM-005 chỉ tạo bảng, không ghi):** giữ 30 bản gần nhất **cho mỗi vault**. Khi PUT, chép bản cũ sang `dt_vault_snapshot` rồi xoá bớt bản cũ trong cùng một `batch()`.
+- **Những gì server biết:** username, số vault, kích thước và thời điểm sửa của từng vault, thiết bị. Username đã thử sai và IP chỉ nằm trong khoá bộ đếm, dưới dạng HMAC có bí mật: không có `SERVER_SECRET` thì không dò ngược được (KM-005 Concern 17; băm thô một IP thì dò ngược được, và người lạ có thể gõ nhầm mật khẩu vào ô username). Server **không** biết tên vault, tên project, env, item hay số lượng item.
 - **Multi-user sau này:** bảng `dt_user` và `dt_vault` đã tách riêng, nên muốn chia sẻ chỉ cần thêm `dt_org`, `dt_member`, `dt_vault_member` hoặc `dt_env_key`. Một vault là đơn vị chia sẻ tự nhiên: bọc `vaultKey` bằng khoá công khai của từng thành viên. Xem [08-roadmap.md](08-roadmap.md).
