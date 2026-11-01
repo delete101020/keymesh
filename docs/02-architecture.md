@@ -127,6 +127,8 @@ keymesh/
 │   │       ├── session.js     # khoá và vault trong bộ nhớ; mọi thay đổi đi qua session.mutate()
 │   │       ├── store.js
 │   │       ├── tab-lock.js, idle.js, clipboard.js   # một tab mở khoá, tự khoá, clipboard tự xoá
+│   │       ├── settings.js    # cài đặt của thiết bị (meta.settings), logic thuần
+│   │       ├── pwa.js         # đăng ký Service Worker, báo bản mới
 │   │       ├── vault-query.js, vault-ops.js, history-diff.js, field-file.js   # logic thuần trên vault
 │   │       ├── otp.js, passgen.js, wordlist.js
 │   │       ├── sync.js
@@ -138,7 +140,7 @@ keymesh/
 │   └── migrations/
 │       └── 0001_init.sql
 ├── test/                      # *.test.js, chạy bằng node --test; test/e2e/*.e2e.js chạy bằng npm run test:e2e
-└── testkit/                   # helper, vector, runner trình duyệt, serve.mjs (phục vụ cục bộ dưới CSP), e2e/ (harness CDP); không được phục vụ
+└── testkit/                   # helper, vector, runner trình duyệt, serve.mjs (phục vụ cục bộ, đọc header từ `_headers`), sw-version.mjs (ghi VERSION và SHELL vào sw.js), gen-icons.mjs, e2e/ (harness CDP); không được phục vụ
 ```
 
 ## Triển khai và vận hành

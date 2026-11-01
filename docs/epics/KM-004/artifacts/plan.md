@@ -141,3 +141,11 @@ Vòng còn thiếu cần xây ở plan này là bước 1 (`BROWSER_APP`) và ph
 - Cài đặt khác (thời gian xoá clipboard, sáng/tối, vault đang chọn): ngoài F-AUTH-11.
 - Đổi giao diện desktop: nút sao và trang chủ chỉ hiện ở màn hẹp.
 - Các finding còn lại của review KM-003: #3 (thử đột biến `gen-vectors`), #4 (`open()` gộp lỗi tab lock), #6–#9. Chỉ làm #2 (che trên Firefox, theo intent) và #5 (listener passive, vì ảnh hưởng trực tiếp tới cuộn trên điện thoại). Hộp "Bỏ bản nháp?" được dùng tiếp, vẫn chờ originator giữ hay bỏ.
+
+## 8. Amendments
+
+Ghi trong lúc implement.
+
+1. **`notranslate` (thêm vào `index.html`, `test/ui-static.test.js`).** Chrome Android đề nghị dịch trang trên giả lập; dịch sẽ gửi nội dung đang hiện ra ngoài. Một dòng, có test.
+2. **Rủi ro "màn đa nhiệm": cách xử lý dự kiến không dùng được.** Đã thử che theo `blur` trên giả lập Android: khi mở màn đa nhiệm trang vẫn `visible` và có focus, không có sự kiện nào, ảnh vẫn lộ. Đã bỏ đoạn mã thử, vì không có tác dụng mà có rủi ro kẹt màn hình trắng. Cần originator quyết định (`implement.md` §7).
+3. **Bước 10 làm được một phần bằng lệnh, không cần tay:** chạy luồng chính trên Safari và Firefox qua iframe cùng origin (script một lần, không vào repo), và chạy trên giả lập Android qua CDP cùng `adb shell input`. Phần cần tay vẫn còn.

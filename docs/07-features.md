@@ -11,13 +11,13 @@ Ký hiệu ưu tiên: **P1** bắt buộc cho bản đầu · **P2** nên có ·
 | F-AUTH-02 | Đăng nhập trên thiết bị mới | P1 | 🆕 |
 | F-AUTH-03 | Mở khoá bằng master password, chạy được cả khi offline | P1 | ✅ (v1 dùng file) → 🆕 |
 | F-AUTH-04 | Mở khoá bằng passkey (vân tay/Face ID), bật hoặc tắt theo từng thiết bị | P1 | 🆕 |
-| F-AUTH-05 | Khoá thủ công; tự khoá khi không thao tác; tự khoá khi app chuyển sang nền (mobile) | P1 | ✅ một phần (v1 chỉ có tự khoá khi không thao tác) |
+| F-AUTH-05 | Khoá thủ công; tự khoá khi không thao tác; tự khoá khi app chuyển sang nền (mobile) | P1 | ✅ (khoá nền kiểm trên Android giả lập; iOS chưa kiểm) |
 | F-AUTH-06 | Đổi master password | P1 | ✅ → 🆕 (theo luồng mới) |
 | F-AUTH-07 | Quản lý thiết bị: xem và thu hồi session | P2 | 🆕 |
 | F-AUTH-08 | Đăng xuất (tuỳ chọn xoá dữ liệu cục bộ) | P1 | 🆕 |
 | F-AUTH-09 | Xoay khoá của một vault; xoay khoá tài khoản | P3 | 🆕 |
 | F-AUTH-10 | Recovery key in ra giấy | P3 | ⏳ |
-| F-AUTH-11 | Chỉnh thời gian tự khoá trong cài đặt (desktop: không thao tác, mặc định 10 phút; mobile: sau khi chuyển nền, mặc định 60 giây) | P1 | 🆕 |
+| F-AUTH-11 | Chỉnh thời gian tự khoá trong cài đặt (desktop: không thao tác, mặc định 10 phút; mobile: sau khi chuyển nền, mặc định 60 giây) | P1 | ✅ |
 
 ## 1b. Vault
 
@@ -54,7 +54,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-ITM-08 | Lịch sử phiên bản (20 bản), xem diff, khôi phục | P1 | ✅ (v2 thêm diff) |
 | F-ITM-09 | Ngày hết hạn và danh sách "Sắp hết hạn" (≤ 14 ngày) | P2 | ✅ |
 | F-ITM-10 | Sinh mật khẩu ngay cạnh field `secret`: chế độ *Ngẫu nhiên* (độ dài 8–64, chữ hoa, số, ký tự đặc biệt) và *Dễ nhớ* (ghép từ) | P2 | ✅ (v2 thêm tuỳ chọn) |
-| F-ITM-11 | Tag, đánh dấu yêu thích | P3 | 🆕 |
+| F-ITM-11 | Tag, đánh dấu yêu thích | P3 | Yêu thích ✅ (chỉ màn hẹp); tag 🆕 |
 | F-ITM-12 | **Thùng rác**: xem, khôi phục item đã xoá trong 30 ngày; *Xoá vĩnh viễn* từng item hoặc *Dọn thùng rác*; tự xoá trắng khi quá 30 ngày | P1 | 🆕 |
 | F-ITM-13 | Badge ⚠ cho item có xung đột đồng bộ, **tô sáng đúng field/thuộc tính bị xung đột**, kèm nút "Đã xử lý" | P1 | 🆕 |
 | F-ITM-14 | Hiện chip "Dùng chung: uat, staging (+1 project khác)" trong chi tiết item | P1 | ✅ |
@@ -69,7 +69,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-VIEW-02 | Tìm kiếm theo tiêu đề, field không phải secret, ghi chú, tag (Cmd/Ctrl+K) | P1 | ✅ |
 | F-VIEW-03 | Copy field (xoá clipboard sau 30 giây), hiện/ẩn secret | P1 | ✅ |
 | F-VIEW-04 | Mở URL trong tab mới | P1 | ✅ |
-| F-VIEW-05 | Gần đây/yêu thích ở màn hình chính trên mobile | P2 | 🆕 |
+| F-VIEW-05 | Gần đây/yêu thích ở màn hình chính trên mobile | P2 | ✅ |
 
 ## 5. Đồng bộ và dữ liệu
 
@@ -89,10 +89,10 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 
 | ID | Chức năng | Ưu tiên | Trạng thái |
 |---|---|---|---|
-| F-PWA-01 | Cài được lên màn hình chính (manifest, icon), mở ở chế độ standalone | P1 | 🆕 |
-| F-PWA-02 | Mở được khi offline (Service Worker cache app shell) | P1 | 🆕 |
-| F-PWA-03 | Báo khi có phiên bản app mới và cho bấm để tải lại | P2 | 🆕 |
-| F-PWA-04 | Giao diện mobile riêng (xem bên dưới) | P1 | 🆕 |
+| F-PWA-01 | Cài được lên màn hình chính (manifest, icon), mở ở chế độ standalone | P1 | ✅ Android giả lập; iOS chưa kiểm |
+| F-PWA-02 | Mở được khi offline (Service Worker cache app shell) | P1 | ✅ Android giả lập; iOS chưa kiểm |
+| F-PWA-03 | Báo khi có phiên bản app mới và cho bấm để tải lại | P2 | ✅ |
+| F-PWA-04 | Giao diện mobile riêng (xem bên dưới) | P1 | ✅ một phần: màn đa nhiệm vẫn lộ nội dung trên Android (04); iOS chưa kiểm |
 | F-PWA-05 | Giao diện sáng/tối theo hệ thống | P1 | ✅ |
 | F-PWA-06 | Share target: chia sẻ link từ app khác vào để tạo nhanh item `doc` (chỉ Android) | P3 | ⏳ |
 
@@ -144,7 +144,7 @@ Nguyên tắc cho mobile:
 - Vùng chạm tối thiểu 44×44 px. Ô tìm kiếm luôn ở đầu trang chủ.
 - Sửa item mở màn hình toàn trang; field secret dùng `autocomplete="off"`, `autocapitalize="off"` và `spellcheck="false"`.
 - Vuốt từ mép trái hoặc bấm "‹" để quay lại; điều hướng dựa trên `history.pushState` để nút Back của Android hoạt động đúng.
-- Khi chuyển nền thì khoá sau 60 giây (chỉnh được trong cài đặt) và che nội dung (Android: hiện lớp phủ trắng khi `visibilitychange` để màn đa nhiệm không chụp lại secret).
+- Khi chuyển nền thì khoá sau 60 giây (chỉnh được trong cài đặt) và che nội dung (Android: hiện lớp phủ trắng khi `visibilitychange` để màn đa nhiệm không chụp lại secret; đã đo: lớp phủ không kịp với ảnh của màn đa nhiệm trên Android, xem giới hạn ở [04](04-security.md)).
 
 ### Thông báo và trạng thái
 

@@ -36,6 +36,8 @@ Không có dependency nào để cài; cần Node ≥ 20.
 npm test               # node --test trên test/*.test.js
 npm run test:browser   # cùng bộ test trong Chrome/Edge headless (đặt CHROME_PATH nếu không tự tìm thấy)
 npm run vectors        # tính lại testkit/vectors.js bằng node:crypto và so với bản đã commit
+npm run sw-version     # ghi VERSION và danh sách file vào sw.js; npm test đỏ nếu quên sau khi đổi file trong src/public
+BROWSER_APP=Safari npm run test:browser   # hoặc Firefox: mở app đó trên macOS thay vì Chrome headless
 ```
 
 `npm run test:e2e` chạy app thật trên Chrome qua DevTools Protocol, không cần package nào (cần Node ≥ 22). Đặt `KEYMESH_SHOTS=<thư mục>` để lưu ảnh chụp màn hình, `CHROME_PATH` nếu Chrome nằm chỗ khác.

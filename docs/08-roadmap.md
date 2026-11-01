@@ -12,6 +12,8 @@
 | **M5 · Hoàn thiện** | Snapshot, quản lý thiết bị, đổi mật khẩu theo luồng mới, export Bitwarden, audit log, **thùng rác** (UI khôi phục và tự xoá trắng), **bản sao tự động ra file**, **quản lý vault** (tạo, đổi tên, chuyển, xoá) | Đạt tiêu chí 6–8 |
 | **M6 · Tuỳ chọn** | Argon2id (WASM), recovery key, mật khẩu riêng cho từng vault, chuyển item giữa vault, share target | — |
 
+**Trạng thái M2 (KM-004, 2026-11-01): chưa đạt.** Android giả lập đã cài và mở offline được; iOS giả lập chưa kiểm vì máy chưa có Xcode; màn đa nhiệm vẫn lộ nội dung trên Android và cần originator quyết định. Khi đạt, tiêu chí này chỉ có nghĩa là đạt trên giả lập: **chưa kiểm trên điện thoại thật thì chưa cất secret thật trên điện thoại**.
+
 M1 và M2 vẫn dùng được hoàn toàn cục bộ mà không cần Cloudflare, nên có thể dùng ngay trong lúc làm M3.
 
 ## Hướng mở rộng: chia sẻ nhiều người (nếu không chuyển sang Vaultwarden)
