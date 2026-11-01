@@ -277,7 +277,43 @@ test('KM-003 AC15 FR19 copying from a PROD env warns and still copies; other ite
   assert.equal(await clip(), 'test-user');
 });
 
+test('KM-003 AC08 FR12 locking with a draft open and a secret shown: both gone after unlocking', async () => {
+  await page.click('Masked');
+  await page.click('Hiện Password');
+  await page.waitText('MASK-MARKER');
+  await page.click('Sửa');
+  await page.fill('Ghi chú', 'DRAFT-MARKER');
+  await page.click('Khoá');
+  await page.waitFor(page.find('Mở khoá'));
+  const dump = await page.domDump();
+  assert.ok(!dump.includes('DRAFT-MARKER') && !dump.includes('MASK-MARKER'));
+  await unlock(page, PASSWORD);
+  assert.equal(await page.eval(`!!document.querySelector('form.stack')`), false);
+  await page.click('Tất cả', { exact: false });
+  await page.click('Masked');
+  await page.waitFor(page.find('Hiện Password'));
+  assert.ok(!(await page.domDump()).includes('DRAFT-MARKER'));
+});
+
+test('KM-003 FR12 FR35 locking while the QR dialog is open stops the camera and closes the dialog', async () => {
+  await page.click('Thêm item');
+  await page.click('Note');
+  await page.select('Kiểu field mới', 'otp');
+  await page.click('Thêm field');
+  await page.eval(`(() => { window.__detect = BarcodeDetector.prototype.detect; BarcodeDetector.prototype.detect = async () => []; })()`);
+  await page.click('Quét QR cho Mã OTP (2FA)');
+  await page.waitFor(`document.querySelector('dialog[open] video')?.srcObject`);
+  await page.eval(`(async () => { const real = Date.now.bind(Date); Date.now = () => real() + 11 * 60000; })()`);
+  await page.waitFor(`!document.querySelector('dialog[open]')`, { timeout: 3000, what: 'dialog closed by auto-lock' });
+  await page.waitFor(page.find('Mở khoá'));
+  assert.equal(await tracksEnded(), true);
+  await page.reload();
+  await unlock(page, PASSWORD);
+});
+
 test('KM-003 AC37 FR12 locking during the count clears the clipboard at once', async () => {
+  await page.click('Tất cả', { exact: false });
+  await page.click('Test item');
   await page.click('Copy Username');
   await page.waitFor(`navigator.clipboard.readText().then((t) => t === 'test-user')`);
   await page.click('Khoá');
@@ -287,6 +323,7 @@ test('KM-003 AC37 FR12 locking during the count clears the clipboard at once', a
 });
 
 test('KM-003 AC36 FR40 in the real browser: cleared after 30 s; copying again restarts; a later copy elsewhere survives', async () => {
+  await page.click('Tất cả', { exact: false });
   await page.click('Test item');
   await page.click('Copy Username');
   await page.waitFor(`navigator.clipboard.readText().then((t) => t === 'test-user')`);

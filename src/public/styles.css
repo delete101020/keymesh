@@ -172,7 +172,7 @@ dialog[open]{display:flex;flex-direction:column}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 .dlg-h{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .dlg-h h2{font-size:16px;flex:1;overflow-wrap:anywhere}
-.dlg-b{padding:16px 18px;overflow:auto;display:grid;gap:12px;min-height:0}
+.dlg-b{padding:16px 18px;overflow:auto;display:grid;gap:12px;min-height:0;flex:1;align-content:start}
 .dlg-f{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
 .env-edit{display:grid;grid-template-columns:1fr 110px auto;gap:6px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
 .env-edit .acts{display:flex;gap:2px;flex-wrap:wrap}

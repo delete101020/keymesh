@@ -257,3 +257,82 @@ test('KM-003 FR23 leaving a changed form asks first', async () => {
   await page.click('Bỏ bản nháp');
   await page.waitFor(`!document.querySelector('form.stack')`);
 });
+
+const listTitles = () => page.eval(`[...document.querySelectorAll('.list .row')].map((r) => r.getAttribute('aria-label'))`);
+const dateIn = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+test('KM-003 AC26 FR29 FR30 expiry on the real screen: N−1, N, N+14 listed, N+15 not; chip wording', async () => {
+  for (const [title, days, chip] of [['Exp -1', -1, 'Đã hết hạn'], ['Exp 0', 0, 'Hết hạn hôm nay'], ['Exp 14', 14, 'Còn 14 ngày'], ['Exp 15', 15, 'Còn 15 ngày']]) {
+    await page.click('Thêm item');
+    await page.click('Note');
+    await page.fill('Tiêu đề', title);
+    await page.eval(`(() => { const el = ${page.find('Ngày hết hạn')}; el.value = '${dateIn(days)}'; el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await page.click('Lưu');
+    await page.waitText(chip);
+  }
+  await goTo('Sắp hết hạn, ');
+  await page.waitFor(page.find('Exp 14'));
+  const titles = await listTitles();
+  assert.deepEqual(titles.filter((t) => t.startsWith('Exp')).sort(), ['Exp -1', 'Exp 0', 'Exp 14']);
+  await page.click('Exp 14');
+  await page.click('Sửa');
+  await page.click('Bỏ hạn');
+  await page.click('Lưu');
+  await page.waitFor(`!document.querySelector('form.stack')`);
+  await page.waitNoText('Còn 14 ngày');
+});
+
+test('KM-003 AC13 AC40 FR15 FR43 deleting a project with 3 items: asks with 3; 2 go to Chưa gán, 1 stays elsewhere; empty filter says so', async () => {
+  await goTo('Tất cả, ');
+  await addProject(page, 'Gone', 'g1, g2');
+  await addProject(page, 'Stay', 's1');
+  await createItem(page, { type: 'Note', title: 'Del one', envs: ['Gone / g1'] });
+  await createItem(page, { type: 'Note', title: 'Del two', envs: ['Gone / g1', 'Gone / g2'] });
+  await createItem(page, { type: 'Note', title: 'Del three', envs: ['Gone / g2', 'Stay / s1'] });
+  await page.click('Quản lý project Gone');
+  await page.click('Xoá project');
+  await page.waitText('3 item đang gán');
+  await page.click('Xoá project');
+  await page.waitFor(`!document.querySelector('dialog[open]')`);
+  assert.equal(await page.eval(`[...document.querySelectorAll('.nav-item')].some((b) => b.getAttribute('aria-label').startsWith('Gone') || b.getAttribute('aria-label').startsWith('g1'))`), false);
+  await goTo('Chưa gán, ');
+  await page.waitFor(page.find('Del one'));
+  const un = await listTitles();
+  assert.ok(un.includes('Del one') && un.includes('Del two') && !un.includes('Del three'));
+  await goTo('Stay, ');
+  await page.waitFor(page.find('Del three'));
+  await page.click('Quản lý project Stay');
+  await page.fill('Tên env mới', 'empty-env');
+  await page.click('Thêm env');
+  await page.waitFor(page.find('Tên env empty-env'));
+  await page.click('Xong');
+  await goTo('empty-env, ');
+  await page.waitText('Chưa có item nào ở đây');
+});
+
+test('KM-003 AC41 FR44 Cmd/Ctrl+K, accents folded, secrets not searched', async () => {
+  await goTo('Tất cả, ');
+  await createItem(page, { type: 'Note', title: 'Mật khẩu VPN' });
+  await page.click('Sửa');
+  await page.select('Kiểu field mới', 'text');
+  await page.click('Thêm field');
+  await page.fill('Giá trị Văn bản', 'đà nẵng');
+  await page.select('Kiểu field mới', 'secret');
+  await page.click('Thêm field');
+  await page.fill('Giá trị Bí mật', 'zebra');
+  await page.click('Lưu');
+  await page.waitFor(`!document.querySelector('form.stack')`);
+  await page.key('k', { code: 'KeyK', modifiers: process.platform === 'darwin' ? 4 : 2 });
+  await page.waitFor(`document.activeElement?.type === 'search'`);
+  for (const [q, found] of [['mat khau', true], ['da nang', true], ['zebra', false]]) {
+    await page.fill('Tìm kiếm', q);
+    await page.waitFor(`document.querySelector('.list h2').textContent.includes(${JSON.stringify(q)})`);
+    assert.equal((await listTitles()).includes('Mật khẩu VPN'), found, q);
+  }
+  await page.waitText('Không tìm thấy item nào');
+  await page.fill('Tìm kiếm', '');
+});

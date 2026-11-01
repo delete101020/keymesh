@@ -39,8 +39,12 @@ function diffRow(app, row) {
   if (row.otp) return h('div', { class: 'diff-row' }, label, h('div', null, 'Đã đổi'));
   if (!row.masked) return h('div', { class: 'diff-row' }, label, values(row.before, row.after));
   const box = h('div', { class: 'diff-row' }, label);
-  const reveal = h('button', { 'aria-label': `Hiện giá trị ${name}`, on: { click: () => reveal.replaceWith(...values(row.before, row.after).filter(Boolean)) } }, icon('eye'), 'Hiện');
-  box.append(h('div', { class: 'diff-val' }, '••••••••'), reveal);
+  const mask = h('div', { class: 'diff-val' }, '••••••••');
+  const reveal = h('button', { 'aria-label': `Hiện giá trị ${name}`, on: { click: () => {
+    mask.remove();
+    reveal.replaceWith(...values(row.before, row.after).filter(Boolean));
+  } } }, icon('eye'), 'Hiện');
+  box.append(mask, reveal);
   return box;
 }
 
