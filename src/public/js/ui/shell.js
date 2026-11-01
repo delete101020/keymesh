@@ -8,6 +8,7 @@ import { renderNav } from './nav.js';
 import { renderList } from './list.js';
 import { renderDetail, stopOtpTicks } from './detail.js';
 import { renderEdit } from './edit.js';
+import { openSettings } from './settings-dialog.js';
 import { registerPwa } from '../pwa.js';
 
 const root = document.getElementById('root');
@@ -34,6 +35,7 @@ function buildMain() {
     h('div', { class: 'brand' }, h('span', { class: 'mark' }, icon('key')), h('span', null, 'KeyMesh')),
     h('div', { class: 'search' }, search, icon('search'), h('kbd', { 'aria-hidden': 'true' }, navigator.platform.startsWith('Mac') ? '⌘K' : 'Ctrl K')),
     h('span', { class: 'spacer' }),
+    h('button', { 'aria-label': 'Cài đặt', fk: 'settings', on: { click: () => openSettings(app) } }, icon('gear')),
     h('button', { 'aria-label': 'Khoá', fk: 'lock', on: { click: () => app.lock() } }, icon('lock')));
   const side = h('nav', { class: 'side', 'aria-label': 'Điều hướng' });
   const list = h('section', { class: 'list', 'aria-label': 'Danh sách item' });
@@ -108,6 +110,8 @@ function showUpdate() {
 app.on((regions, payload) => {
   if (regions.includes('toast') && payload !== undefined) return showToast(payload);
   if (regions.includes('update')) return showUpdate();
+  // An attribute, so CSS can hide everything including dialogs, which sit above any z-index.
+  if (regions.includes('shield')) return document.body.toggleAttribute('data-shield', app.state.shielded);
   if (regions.includes('screen')) return renderScreen();
   return drawRegions(regions);
 });

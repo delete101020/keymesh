@@ -65,7 +65,7 @@ test('KM-003 AC45 NFR01 the local server sends exactly the CSP of docs/04', { sk
 });
 
 test('KM-003 AC44 FR47 no out-of-scope feature appears in UI strings', { skip }, async () => {
-  const banned = /yêu thích|thùng rác|đăng nhập|đăng xuất|đồng bộ|backup|sao lưu|import\b|export\b|passkey|vân tay|đổi mật khẩu|chọn vault|thời gian khoá|\btag\b|\bthẻ\b/i;
+  const banned = /thùng rác|đăng nhập|đăng xuất|đồng bộ|backup|sao lưu|import\b|export\b|passkey|vân tay|đổi mật khẩu|chọn vault|\btag\b|\bthẻ\b/i;
   for (const { name, text } of await sources((n) => n.startsWith('js/ui/') || n === 'index.html')) {
     // Only string literals count; code comments and JS keywords like `import` do not.
     for (const m of text.matchAll(/'([^'\n]*)'|`([^`\n]*)`|>([^<\n]+)</g)) {

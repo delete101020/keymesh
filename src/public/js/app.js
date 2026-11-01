@@ -8,6 +8,7 @@ import { createSession, LockedError } from './session.js';
 import { acquireTabLock } from './tab-lock.js';
 import { createIdleTimer } from './idle.js';
 import { createClipboardGuard } from './clipboard.js';
+import { cleanSettings, defaultSettings, isTouchDevice, lockTimes, pushRecent } from './settings.js';
 import { parseOtp, totp } from './otp.js';
 import { isProd, itemLiveEnvs, liveEnvs, liveProjects, queryItems } from './vault-query.js';
 import {
@@ -22,7 +23,10 @@ import {
   templateDraft,
 } from './vault-ops.js';
 
-const ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'mousemove', 'keydown', 'wheel', 'scroll', 'touchstart', 'input', 'click'];
+// Passive where the browser would otherwise wait for this handler before scrolling. Those can't cancel
+// the event that finds the session expired, but by then the lock has removed everything it could touch.
+const PASSIVE_ACTIVITY = ['pointermove', 'mousemove', 'wheel', 'scroll', 'touchstart', 'touchmove'];
+const ACTIVE_ACTIVITY = ['pointerdown', 'keydown', 'input', 'click'];
 
 const emptyView = () => ({
   filter: { k: 'all' },
@@ -53,12 +57,16 @@ function platformProblem() {
 export function createApp({ confirmDiscard = async () => true } = {}) {
   const listeners = new Set();
   const disposers = new Set();
-  const state = { screen: 'loading', errorDetail: null, updateReady: false, ...emptyView() };
+  const touch = isTouchDevice();
+  const state = { screen: 'loading', errorDetail: null, updateReady: false, shielded: false, settings: defaultSettings(), ...emptyView() };
+  let store = null;
   let session = null;
   let releaseTab = null;
   let toastTimer = null;
   const clipboard = createClipboardGuard();
   const idle = createIdleTimer({ onExpire: () => lock() });
+  const applySettings = () => idle.setTimeouts(lockTimes(state.settings, touch));
+  applySettings();
 
   const emit = (...regions) => {
     for (const fn of listeners) fn(regions);
@@ -72,6 +80,12 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       for (const fn of listeners) fn(['toast'], null);
     }, ms);
   };
+
+  // A broken value or a failed read falls back to the defaults: the app stays locked down either way.
+  async function loadSettings() {
+    state.settings = cleanSettings(await store.readSettings().catch(() => null));
+    applySettings();
+  }
 
   function enterMain() {
     Object.assign(state, emptyView(), { screen: 'main' });
@@ -95,6 +109,7 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       return { ok: false, error: 'storage' };
     }
     releaseTab = release;
+    await loadSettings();
     enterMain();
     return { ok: true };
   }
@@ -177,6 +192,7 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       return () => disposers.delete(fn);
     },
     toast,
+    touch,
 
     async boot() {
       const missing = platformProblem();
@@ -186,8 +202,9 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
         return emit('screen');
       }
       try {
-        const store = await openStore();
+        store = await openStore();
         session = createSession({ store });
+        await loadSettings();
         state.screen = (await session.hasAccount()) ? 'locked' : 'setup';
       } catch (e) {
         state.screen = 'error';
@@ -201,16 +218,24 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
         if (idle.activity()) return;
         // Expired while nothing ran (machine asleep): the app has just locked, drop this event.
         e.stopImmediatePropagation();
-        e.preventDefault();
+        if (e.cancelable && !PASSIVE_ACTIVITY.includes(e.type)) e.preventDefault();
       };
-      for (const type of ACTIVITY_EVENTS) win.addEventListener(type, seen, { capture: true, passive: false });
+      for (const type of ACTIVE_ACTIVITY) win.addEventListener(type, seen, { capture: true, passive: false });
+      for (const type of PASSIVE_ACTIVITY) win.addEventListener(type, seen, { capture: true, passive: true });
       const wake = () => idle.check();
       win.addEventListener('focus', () => {
         wake();
         clipboard.focused();
       });
       win.addEventListener('pageshow', wake);
-      win.document.addEventListener('visibilitychange', wake);
+      win.document.addEventListener('visibilitychange', () => {
+        const hidden = win.document.visibilityState === 'hidden';
+        if (hidden) idle.hidden();
+        else idle.visible();
+        // Cover the content before the OS takes its picture for the task switcher (touch devices only).
+        state.shielded = touch && hidden;
+        emit('shield');
+      });
       // Going into the back/forward cache with a vault open would keep it in memory.
       win.addEventListener('pagehide', () => {
         if (session?.unlocked) lock();
@@ -220,6 +245,22 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
     createAccount: (password) => open(() => session.createAccount(password)),
     unlock: (password) => open(() => session.unlock(password)),
     lock,
+
+    // --- settings --------------------------------------------------------------------------------
+
+    async changeSettings(patch, okMessage) {
+      const next = cleanSettings({ ...state.settings, ...patch });
+      try {
+        await store.writeSettings(next);
+      } catch {
+        toast('Lưu thất bại. Dữ liệu chưa được ghi, hãy thử lại.', 'error');
+        return false;
+      }
+      state.settings = next;
+      applySettings();
+      if (okMessage) toast(okMessage);
+      return true;
+    },
 
     // --- new version -----------------------------------------------------------------------------
 

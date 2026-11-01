@@ -83,3 +83,25 @@ test('KM-003 AC11 FR13 a second tab cannot unlock and says why; after the first 
   await unlock(page);
   await page.waitText('LATEST-FROM-A');
 });
+
+test('KM-004 AC06 AC07 a computer: another tab does not lock or cover anything; the setting is the idle time, and it works', async () => {
+  const hide = (hidden) => page.eval(`(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => ${hidden ? "'hidden'" : "'visible'"} }); document.dispatchEvent(new Event('visibilitychange')); })()`);
+  await hide(true);
+  assert.equal(await page.eval(`document.body.hasAttribute('data-shield')`), false);
+  await jump(5 * MIN);
+  await hide(false);
+  assert.equal(await page.has('Khoá'), true);
+  await page.click('Cài đặt');
+  await page.waitText('Tự khoá khi không thao tác');
+  assert.ok(!(await page.text()).includes('Khoá sau khi chuyển nền'));
+  assert.equal(await page.value('Tự khoá khi không thao tác'), '600000');
+  await page.select('Tự khoá khi không thao tác', '60000');
+  await page.waitText('Đã lưu');
+  await page.click('Đóng');
+  await jump(1 * MIN);
+  await page.waitFor(page.find('Mở khoá'), { timeout: 3000 });
+  await unlock(page);
+  await page.click('Cài đặt');
+  assert.equal(await page.value('Tự khoá khi không thao tác'), '60000');
+  await page.click('Đóng');
+});

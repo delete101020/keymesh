@@ -186,6 +186,22 @@ export class Page {
     await new Promise((r) => setTimeout(r, 50));
   }
 
+  // A phone as far as the app can tell: (hover: none) and (pointer: coarse). Takes effect for code that
+  // runs after this, so reload if the app is already up.
+  async phone(width = 360, height = 640) {
+    await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile: true });
+    await this.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await new Promise((r) => setTimeout(r, 50));
+  }
+
+  // What going to the background and back looks like to the page; CDP has no real one for a headless tab.
+  async setBackground(hidden) {
+    await this.eval(`(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => ${hidden ? "'hidden'" : "'visible'"} });
+      document.dispatchEvent(new Event('visibilitychange'));
+    })()`);
+  }
+
   async colorScheme(value) {
     await this.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }] });
     await new Promise((r) => setTimeout(r, 50));

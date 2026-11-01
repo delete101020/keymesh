@@ -4,6 +4,7 @@ const DB_VERSION = 1;
 const META = 'meta';
 const VAULTS = 'vaults';
 const ACCOUNT_KEY = 'account';
+const SETTINGS_KEY = 'settings';
 
 // Thrown instead of a raw DOMException so callers have one thing to catch. No stored value is ever in it.
 export class StoreError extends Error {
@@ -102,6 +103,13 @@ export async function openStore(idb = globalThis.indexedDB) {
         const row = await result(store.get(id));
         if (!row) throw new StoreError('missing');
         store.put({ ...row, current: { ...row.current, envelope, dirty: true, savedAt } });
+      }),
+
+    readSettings: () => inTx(META, 'readonly', (tx) => result(tx.objectStore(META).get(SETTINGS_KEY))).then((s) => s ?? null),
+
+    writeSettings: (settings) =>
+      inTx(META, 'readwrite', (tx) => {
+        tx.objectStore(META).put(settings, SETTINGS_KEY);
       }),
 
     close: () => db.close(),

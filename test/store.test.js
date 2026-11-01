@@ -110,3 +110,14 @@ test('KM-003 AC53 FR04 a stored row opens with the password and maps onto POST /
 test('KM-003 FR08 a missing IndexedDB is reported, not thrown as a TypeError', async () => {
   await assert.rejects(openStore(null), StoreError);
 });
+
+test('KM-004 AC07 settings live in meta.settings next to the account and survive a new connection', { skip }, async () => {
+  const store = await freshStore();
+  assert.equal(await store.readSettings(), null);
+  await store.writeSettings({ idleMs: 60000, backgroundMs: 0, recents: ['i_a'] });
+  store.close();
+  const again = await openStore();
+  assert.deepEqual(await again.readSettings(), { idleMs: 60000, backgroundMs: 0, recents: ['i_a'] });
+  assert.equal(await again.readAccount(), null);
+  again.close();
+});
