@@ -411,7 +411,9 @@ function mergePurge(b, p, o, l, r) {
     return setMeta(order(out, ITEM_KEYS), l, r);
   }
   const out = clone(p);
-  if (o.deletedAt !== null && o.deletedAt < p.deletedAt) {
+  // The other side trashed it too (its deletedAt moved from base): keep the earlier deletion.
+  const oTrashed = o.deletedAt !== null && o.deletedAt !== (b === ABSENT ? null : b.deletedAt);
+  if (oTrashed && o.deletedAt < p.deletedAt) {
     out.deletedAt = o.deletedAt;
     setClock(out, 'deletedAt', o.clock?.deletedAt);
   }

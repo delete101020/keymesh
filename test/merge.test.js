@@ -711,3 +711,15 @@ test('FR13 FR12 metadata: a save that only changes tags, or a purge of a trashed
   assert.deepEqual(merge(b2, b2, r2), r2);
   assert.deepEqual(merge(b2, r2, r2), r2);
 });
+
+// --- regressions found by the property test (test/merge-props.test.js) ----------------------------
+
+test('FR14 seed 24587: restore-then-purge on one side, other side untouched: the purge side as is', () => {
+  const { vault: b, item } = trashedFixture();
+  const r = fork(b);
+  restoreItem(r, item.id, at(10, DEV_B));
+  purgeItem(r, item.id, at(11, DEV_B));
+  assert.deepEqual(merge(b, b, r), r);
+  assert.deepEqual(merge(b, r, b), r);
+  assert.equal(merge(b, fork(b), r).items[0].deletedAt, T0 + 11000);
+});
