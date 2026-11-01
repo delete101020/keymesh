@@ -39,14 +39,18 @@ test(`AC26 FR01 FR03 FR18 NFR04 NFR06 merge properties on ${CASES} seeded cases 
   const failed = [];
   let conflicts = 0;
   let deletions = 0;
+  // FNV-1a over every merge result: the same number on Node and in the browser shows NFR04 across platforms.
+  let fp = 0x811c9dc5;
   for (let i = 0; i < CASES; i++) {
     const c = genCase(SEED + i);
     const { m, fails } = check(c);
     if (fails.length) failed.push(`seed ${c.seed}: ${fails.join('; ')}`);
     conflicts += m.items.filter((x) => x.conflict !== null).length;
     deletions += m.items.filter((x) => x.deletedAt !== null).length;
+    const text = JSON.stringify(m);
+    for (let k = 0; k < text.length; k++) fp = Math.imul(fp ^ text.charCodeAt(k), 0x01000193) >>> 0;
   }
-  t.diagnostic(`AC26 ${CASES} cases: ${conflicts} items with a conflict mark, ${deletions} in the trash or purged`);
+  t.diagnostic(`AC26 ${CASES} cases: ${conflicts} items with a conflict mark, ${deletions} in the trash or purged, fingerprint ${fp.toString(16)}`);
   assert.deepEqual(failed.slice(0, 10), [], `${failed.length} of ${CASES} cases failed`);
   assert.ok(conflicts > CASES / 10, 'the generator produces conflicts');
   assert.ok(deletions > CASES / 10, 'the generator produces deletions');
