@@ -56,7 +56,7 @@
 
 | Criterion | Kết quả | Còn thiếu |
 |---|---|---|
-| `KM-004-AC01` | Một phần: luồng chính đạt; copy bằng chạm thật đạt trên Safari iOS; đã đo được một nguyên nhân gây treo | Copy bằng tay trên Safari desktop. Chạy lại `BROWSER_APP=Safari npm run test:browser` khi màn hình mở khoá (bản 216 test chưa chạy hết trên Safari) |
+| `KM-004-AC01` | Một phần: luồng chính đạt; copy bằng chạm thật đạt trên Safari iOS; đã đo được một nguyên nhân gây treo | Copy bằng tay trên Safari desktop |
 | `KM-004-AC02` | Một phần | Copy bằng cử chỉ thật trên Firefox |
 | `KM-004-AC03` | **Chưa chạy** | Cả năm mục, cần originator |
 | `KM-004-AC04` | Đạt trên cả hai | Android: ở standalone offline mới tới màn khoá, mở khoá offline đã kiểm ở tab Chrome. iOS: đủ cả mật khẩu sai và đúng ở standalone |
@@ -324,7 +324,7 @@ $ npm run test:e2e                  tests 89   pass 89   fail 0
 $ npm run test:browser              tests 216  pass 216  fail 0
 ```
 
-Số 209 của Safari và Firefox ở phần đầu là trước khi thêm test clipboard. Số mới: Firefox 216/216. **Safari chưa chạy hết bản 216 test**, lý do ở dưới.
+Số 209 của Safari và Firefox ở phần đầu là trước khi thêm test clipboard. Số mới: Firefox 216/216, Safari 216/216 (lần chạy đối chứng ở dưới).
 
 **Lần treo ở Safari: đã đo được nguyên nhân, trong điều kiện hôm nay.** Máy đang khoá màn hình trong lúc chạy, trang báo `hidden` từ đầu, và timer gần như dừng:
 
@@ -339,12 +339,22 @@ ticks seen: 6      (setInterval 1 giây, trong 25 giây)
 trang đo riêng, tab hidden: 2 nhịp setTimeout(0) trong 24 giây
 ```
 
-Firefox trong cùng điều kiện vẫn xong nhưng chậm: 81 giây so với 13 giây. Lần treo 180 giây ở KM-003 không có log nên chưa thể khẳng định cùng nguyên nhân, chỉ có khả năng. Chưa có lần chạy đối chứng ở màn hình mở khoá sau thay đổi này; lần chạy trước đó trong phiên, bản 209 test, xong trong 16 giây. `testkit/browser/run.mjs` giờ tự báo lý do:
+Firefox trong cùng điều kiện vẫn xong nhưng chậm: 81 giây so với 13 giây. Lần treo 180 giây ở KM-003 không có log nên chưa thể khẳng định cùng nguyên nhân, chỉ có khả năng. `testkit/browser/run.mjs` giờ tự báo lý do:
 
 ```
 Timed out after 180 s waiting for http://127.0.0.1:60477/testkit/browser/index.html
 The page was hidden during the run, so its timers were held back. Unlock the screen, keep the window visible and run again.
 ```
+
+Lần chạy đối chứng, màn hình đã mở khoá (`IOConsoleLocked = No`), cùng commit `57813f5`:
+
+```
+$ BROWSER_APP=Safari npm run test:browser
+Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Safari/605.1.15
+tests 216  pass 216  fail 0  (61113 ms)
+```
+
+Khoá màn hình thì không xong, mở khoá thì xong: một lần đo, nhưng khớp với nguyên nhân trên. Lần này mất 61 giây, so với 16 giây của bản 209 test; chưa rõ vì sao, và không đo trạng thái hiển thị của cửa sổ trong lần chạy này.
 
 **Một điểm chưa giải thích:** ở lần chạy đầu, dùng click bằng script, lần bấm Back đầu tiên không chuyển màn (`Back key from detail →: detail`). Không lặp lại khi chạm thật. Có thể phím Back bị bàn phím ảo hoặc Chrome giữ lại, nhưng chưa xác nhận.
 
@@ -411,9 +421,8 @@ Xem `test/settings.test.js`, `test/vault-query.test.js`, `mobile.e2e.js` ở tr�
 - **Bản sửa clipboard mới kiểm trên iOS và Chrome.** Chưa kiểm lại trên giả lập Android và Safari, Firefox desktop bằng tay. Giá trị đọc lại khi copy trên Android vẫn chưa xác nhận.
 - **`ui/nav-history.js` nhận diện iOS bằng `'standalone' in navigator`.** E2E chỉ giả lập thuộc tính này trên Chrome; hành vi thật đã kiểm một lần trên iOS 18.6.
 - **`AC03`: năm mục KM-003 chưa chạy.**
-- **Safari desktop chưa chạy hết bản 216 test**, vì màn hình đang khoá. Cần chạy lại khi mở khoá.
 - `ui/nav-history.js` là chỗ dễ sai nhất: `history.go` bất đồng bộ, được giữ khớp bằng bộ đếm `popping`.
-- Khoá nền trong e2e dùng `visibilityState` giả và `Date.now` giả; bản thật chỉ chạy trên giả lập Android.
+- Khoá nền trong e2e dùng `visibilityState` giả và `Date.now` giả; bản thật chỉ chạy trên giả lập Android và iOS.
 - Bộ chọn file đưa app ra nền quá thời gian đã đặt thì khoá và mất nháp. Đã chấp nhận ở plan, chưa thử.
 - Tài khoản và item thử trên AVD chỉ là dữ liệu thử; AVD chạy với `-no-snapshot-save`.
 
