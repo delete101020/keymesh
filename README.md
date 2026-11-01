@@ -12,7 +12,7 @@ Dữ liệu mã hoá đầu-cuối, dùng được trên máy tính, Android và
 |---|---|---|
 | 01 | [Tổng quan](docs/01-overview.md) | Bối cảnh, mục tiêu, phạm vi, các quyết định chính, thuật ngữ |
 | 02 | [Kiến trúc](docs/02-architecture.md) | Thành phần, luồng chính, công nghệ, cấu trúc repo, triển khai |
-| 03 | [Thiết kế dữ liệu](docs/03-data-model.md) | Nhiều vault, schema vault v2, khoá và envelope, IndexedDB, **D1 schema**, migrate v1→v2 |
+| 03 | [Thiết kế dữ liệu](docs/03-data-model.md) | Nhiều vault, schema vault v2, khoá và envelope, IndexedDB, **D1 schema** |
 | 04 | [Bảo mật](docs/04-security.md) | Mật mã, vòng đời khoá, xác thực, passkey, CSP, mô hình mối đe doạ |
 | 05 | [Đồng bộ](docs/05-sync.md) | Giao thức offline-first theo từng vault, gộp ba chiều theo field, xử lý xung đột |
 | 06 | [API](docs/06-api.md) | Các endpoint của Pages Functions |

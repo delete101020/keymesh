@@ -79,7 +79,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-SYNC-02 | Thanh trạng thái đồng bộ và nút "Đồng bộ ngay" | P1 | 🆕 |
 | F-SYNC-03 | Xem và khôi phục snapshot trên server (theo từng vault) | P2 | 🆕 |
 | F-DATA-01 | Tải backup đã mã hoá (`keymesh-backup`), chọn một hoặc tất cả vault | P1 | ✅ (v1 là chính file) → 🆕 |
-| F-DATA-02 | Import file v1 hoặc backup v2 vào vault đang chọn hoặc vault mới | P1 | 🆕 |
+| F-DATA-02 | Import backup v2 vào vault đang chọn hoặc vault mới | P1 | 🆕 |
 | F-DATA-03 | **Export sang Bitwarden JSON** (dạng tổ chức) **theo từng vault**: mỗi cặp `Project/env` thành một collection, item dùng chung có nhiều `collectionIds`. Field `otp` đầu tiên của item login thành `login.totp`; các field còn lại thành custom field | P2 | 🆕 |
 | F-DATA-04 | Export plaintext JSON/CSV, phải nhập lại mật khẩu và đọc cảnh báo | P3 | 🆕 |
 | F-DATA-05 | Nhật ký hoạt động (đăng nhập, thiết bị, lỗi xung đột) | P3 | 🆕 |

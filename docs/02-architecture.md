@@ -119,7 +119,7 @@ keymesh/
 │   │       │   ├── bytes.js
 │   │       │   ├── errors.js
 │   │       │   ├── crypto.js
-│   │       │   ├── model.js   # schema, migrate v1 → v2, validate
+│   │       │   ├── model.js   # schema, validate
 │   │       │   └── merge.js
 │   │       ├── app.js         # khởi động, router, render
 │   │       ├── ui/            # các màn hình

@@ -6,8 +6,8 @@
     "epic": "KM-003"
   },
   "startedAt": "2026-10-30T04:44:57.000Z",
-  "updatedAt": "2026-10-30T04:44:57.000Z",
-  "currentStepIdx": 0,
+  "updatedAt": "2026-11-01T09:00:59.110Z",
+  "currentStepIdx": 3,
   "status": "running",
   "steps": [
     {
@@ -15,33 +15,66 @@
       "agent": "aidlc-native-originator",
       "name": "intent",
       "revision": 1,
-      "status": "awaiting_work",
+      "status": "approved",
       "startedAt": "2026-10-30T04:44:57.000Z",
-      "artifactsProduced": []
+      "artifactsProduced": [
+        "docs/epics/KM-003/artifacts/intent.md"
+      ],
+      "finishedAt": "2026-11-01T08:33:03.827Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-01T08:33:03.827Z",
+          "revision": 1
+        }
+      ]
     },
     {
       "stepIdx": 1,
       "agent": "aidlc-native-product-owner",
       "name": "spec",
       "revision": 1,
-      "status": "pending",
-      "artifactsProduced": []
+      "status": "approved",
+      "artifactsProduced": [
+        "docs/epics/KM-003/artifacts/spec.md"
+      ],
+      "startedAt": "2026-11-01T08:33:03.827Z",
+      "finishedAt": "2026-11-01T08:45:14.320Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-01T08:45:14.320Z",
+          "revision": 1
+        }
+      ]
     },
     {
       "stepIdx": 2,
       "agent": "aidlc-native-engineer",
       "name": "build-plan",
       "revision": 1,
-      "status": "pending",
-      "artifactsProduced": []
+      "status": "approved",
+      "artifactsProduced": [
+        "docs/epics/KM-003/artifacts/plan.md"
+      ],
+      "startedAt": "2026-11-01T08:45:14.320Z",
+      "finishedAt": "2026-11-01T09:00:59.110Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-01T09:00:59.110Z",
+          "revision": 1
+        }
+      ]
     },
     {
       "stepIdx": 3,
       "agent": "aidlc-native-engineer",
       "name": "implement",
       "revision": 1,
-      "status": "pending",
-      "artifactsProduced": []
+      "status": "awaiting_work",
+      "artifactsProduced": [],
+      "startedAt": "2026-11-01T09:00:59.110Z"
     },
     {
       "stepIdx": 4,

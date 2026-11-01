@@ -51,7 +51,7 @@ erDiagram
 | User, session (phía server) | Tiền tố + 16 hex | `u_…`, `s_…` |
 
 - Id lấy từ `crypto.getRandomValues`, không chứa thông tin gì, nên không cần băm hay HMAC trước khi gửi lên server.
-- Id migrate từ v1 (hex trần) được **giữ nguyên**. Code chấp nhận cả dạng có và không có tiền tố, và không suy loại thực thể từ tiền tố.
+- Code chấp nhận cả dạng có và không có tiền tố, và không suy loại thực thể từ tiền tố.
 - UI không hiện id thô. Màn debug hoặc audit log hiện dạng rút gọn (8 ký tự đầu).
 
 ### Đồng hồ (`clock`)
@@ -402,33 +402,3 @@ CREATE INDEX dt_audit_log_user_id_at_idx ON dt_audit_log(user_id, at DESC);
 - **Số snapshot:** giữ 30 bản gần nhất **cho mỗi vault**. Khi PUT, chép bản cũ sang `dt_vault_snapshot` rồi xoá bớt bản cũ trong cùng một `batch()`.
 - **Những gì server biết:** username, số vault, kích thước và thời điểm sửa của từng vault, thiết bị, IP (dạng hash, dùng cho rate limit). Server **không** biết tên vault, tên project, env, item hay số lượng item.
 - **Multi-user sau này:** bảng `dt_user` và `dt_vault` đã tách riêng, nên muốn chia sẻ chỉ cần thêm `dt_org`, `dt_member`, `dt_vault_member` hoặc `dt_env_key`. Một vault là đơn vị chia sẻ tự nhiên: bọc `vaultKey` bằng khoá công khai của từng thành viên. Xem [08-roadmap.md](08-roadmap.md).
-
----
-
-## 5. Migrate v1 → v2
-
-Có hai đường vào:
-
-1. **Import file `envvault.json` v1** (`"format": "envvault"`, tên cũ của dự án): nhập mật khẩu cũ để giải mã.
-2. **Import từ localStorage** (`envvault`), nếu chạy cùng origin với bản v1. Trường hợp này hiếm, vì v1 chạy dưới `file://` hoặc localhost.
-
-Dữ liệu v1 được import vào **vault đang chọn** (mặc định là vault đầu tiên), hoặc vào một vault mới nếu người dùng chọn.
-
-Các bước chuyển đổi trong `model.js`:
-
-```text
-clock0 = { at: now, dev: deviceId }
-for project in v1.projects:
-    for (i, env) in project.envs:  envs.push({...env, projectId: project.id, order: i, rev: 1, clock: all(clock0), …timestamps})
-    project = {id, name, order, rev: 1, clock: all(clock0), …timestamps}
-for item in v1.items:
-    item.rev = history.length + 1; item.deletedAt = null; item.purgedAt = null
-    item.tags = []; item.favorite = false; item.conflict = null
-    item.clock = all(clock0); item.fieldOrder = fields.map(f => f.id)
-    for field in item.fields: field.at = clock0.at; field.dev = clock0.dev; field.deletedAt = null
-    history[*].rev, reason = 'edit'
-giữ nguyên mọi id của v1 (hex trần)
-mã hoá bằng vaultKey của vault đích → PUT lên server
-```
-
-Sau khi migrate, giữ nguyên file v1 và để người dùng tự xoá.

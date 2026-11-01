@@ -87,7 +87,7 @@ for id in union(ids(base), ids(local), ids(remote)):
     if l == r:                → giữ l                       # giống nhau (so theo nội dung)
     elif r is missing:        → giữ l                       # mới tạo ở local
     elif l is missing:        → giữ r                       # mới tạo ở remote
-    elif b is missing:        → mergeEntity({}, l, r)       # hai bên cùng tạo một id (hiếm: import cùng file v1)
+    elif b is missing:        → mergeEntity({}, l, r)       # hai bên cùng tạo một id (hiếm: import cùng một file backup)
     else:                     → mergeEntity(b, l, r)
 ```
 
