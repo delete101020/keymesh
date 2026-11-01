@@ -1,7 +1,7 @@
 // Login lockouts per username and per IP. Waiting is done by moving timestamps back in the local file.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAccount, newAuthKey, startServer, uniqueIp, uniqueName } from '../../testkit/wrangler-server.mjs';
+import { createAccount, newAuthKey, newBlob, startServer, uniqueIp, uniqueName } from '../../testkit/wrangler-server.mjs';
 
 let server;
 before(async () => {
@@ -151,7 +151,7 @@ test('KM-005 AC31 a request refused with 400 is not counted', async () => {
   assert.equal((await login(account.username, account.authKey, ip)).status, 200);
 });
 
-test('KM-005 AC32 a lock stops logins only: prelogin and registering still work', async () => {
+test('KM-005 AC32 a lock stops logins only: a live session and prelogin still work', async () => {
   const account = await createAccount(server);
   const ip = uniqueIp();
   await fail(account.username, ip, 5);
@@ -159,7 +159,11 @@ test('KM-005 AC32 a lock stops logins only: prelogin and registering still work'
   const kdf = await server.call('GET', `/api/prelogin?username=${account.username}`, { ip });
   assert.equal(kdf.status, 200);
   assert.deepEqual(kdf.body.kdf, account.kdf);
-  assert.equal((await server.call('POST', '/api/logout', { token: account.token, ip })).status, 204);
+  const { token, vaultId } = account;
+  assert.equal((await server.call('GET', '/api/vaults', { token, ip })).status, 200);
+  const read = await server.call('GET', `/api/vaults/${vaultId}`, { token, ip });
+  assert.equal(read.status, 200);
+  assert.equal((await server.call('PUT', `/api/vaults/${vaultId}`, { token, ip, json: { baseVersion: read.body.version, blob: newBlob() } })).status, 200);
 });
 
 test('KM-005 AC53 NFR05 20 parallel failures on one username: exactly 5 are 401, the rest 429', async () => {

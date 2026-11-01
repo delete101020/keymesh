@@ -3,12 +3,17 @@
 import { authenticate, login, logout, prelogin, register } from './_auth.js';
 import { ApiError, errorResponse } from './_http.js';
 import { validVaultId } from './_validate.js';
+import { createVault, listVaults, readVault, writeVault } from './_vaults.js';
 
 const ROUTES = [
   { method: 'GET', path: /^\/api\/prelogin$/, handler: prelogin },
   { method: 'POST', path: /^\/api\/register$/, handler: register },
   { method: 'POST', path: /^\/api\/login$/, handler: login },
   { method: 'POST', path: /^\/api\/logout$/, auth: true, handler: logout },
+  { method: 'GET', path: /^\/api\/vaults$/, auth: true, handler: listVaults },
+  { method: 'POST', path: /^\/api\/vaults$/, auth: true, handler: createVault },
+  { method: 'GET', path: /^\/api\/vaults\/([^/]+)$/, auth: true, handler: readVault },
+  { method: 'PUT', path: /^\/api\/vaults\/([^/]+)$/, auth: true, handler: writeVault },
 ];
 
 function originAllowed(request, env) {

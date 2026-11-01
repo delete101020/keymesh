@@ -13,10 +13,20 @@ after(() => server.stop());
 const hashOf = (token) => createHash('sha256').update(token).digest('base64');
 const logout = (token) => server.call('POST', '/api/logout', { token });
 const login = (account) => server.call('POST', '/api/login', { json: { username: account.username, authKey: account.authKey }, ip: uniqueIp() });
+const DAY = 24 * 60 * 60 * 1000;
+const expiryOf = (token) => server.sql('SELECT expires_at FROM dt_session WHERE token_hash = ?', hashOf(token))[0]?.expires_at;
 const anUnauthorized = () => server.call('POST', '/api/logout');
 
 // Every authenticated operation, with an id or body that would be wrong had the token passed.
-const GUARDED = [['POST', '/api/logout', { raw: '{broken' }]];
+const GUARDED = [
+  ['POST', '/api/logout', { raw: '{broken' }],
+  ['GET', '/api/vaults', {}],
+  ['POST', '/api/vaults', { raw: '{broken' }],
+  ['GET', '/api/vaults/NOT-AN-ID', {}],
+  ['GET', '/api/vaults/0123456789abcdef?since=abc', {}],
+  ['PUT', '/api/vaults/NOT-AN-ID', { raw: '{broken' }],
+  ['PUT', '/api/vaults/0123456789abcdef', { raw: '{broken' }],
+];
 
 const assertRefused = async (headersOrToken, label) => {
   const expected = await anUnauthorized();
@@ -46,6 +56,23 @@ test('KM-005 AC33 every way a token can be bad gives one and the same 401, befor
   const stamped = await createAccount(server);
   server.sql(`UPDATE dt_user SET security_stamp = 'changed' WHERE id = ? RETURNING id`, stamped.userId);
   await assertRefused({ token: stamped.token }, 'stamp changed');
+});
+
+test('KM-005 AC34 using a token renews it for 30 days from then; at the expiry instant it is refused', async () => {
+  const account = await createAccount(server);
+  server.sql('UPDATE dt_session SET expires_at = ? WHERE token_hash = ? RETURNING id', Date.now() + DAY, hashOf(account.token));
+  const before = Date.now();
+  assert.equal((await server.call('GET', '/api/vaults', { token: account.token })).status, 200);
+  const after = Date.now();
+  const renewed = expiryOf(account.token);
+  assert.ok(renewed >= before + 30 * DAY && renewed <= after + 30 * DAY, 'renewed from now, not from the old expiry');
+
+  // Past the instant by one millisecond at the earliest: expiry is not a grace period.
+  const edge = await createAccount(server);
+  const instant = Date.now();
+  server.sql('UPDATE dt_session SET expires_at = ? WHERE token_hash = ? RETURNING id', instant, hashOf(edge.token));
+  assert.equal((await server.call('GET', '/api/vaults', { token: edge.token })).status, 401);
+  assert.equal(expiryOf(edge.token), instant, 'a refused token is not renewed');
 });
 
 test('KM-005 AC35 logging out ends only that session; the same token then gets 401, even to log out', async () => {
