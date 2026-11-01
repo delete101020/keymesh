@@ -9,6 +9,7 @@ import { renderList } from './list.js';
 import { renderDetail, stopOtpTicks } from './detail.js';
 import { renderEdit } from './edit.js';
 import { openSettings } from './settings-dialog.js';
+import { bindNavHistory, narrowQuery } from './nav-history.js';
 import { registerPwa } from '../pwa.js';
 
 const root = document.getElementById('root');
@@ -123,6 +124,12 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// The detail view lays out its buttons by width. A form keeps what is being typed, so it is left alone.
+narrowQuery().addEventListener('change', () => {
+  if (app.state.mode === 'view') drawRegions(['detail']);
+});
+
+bindNavHistory(app);
 app.bindActivity();
 app.boot();
 pwa.start();

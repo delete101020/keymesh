@@ -15,6 +15,8 @@ import {
   filterCounts,
   sharedChip,
   itemLiveEnvs,
+  recentItems,
+  favoriteItems,
 } from '../src/public/js/vault-query.js';
 
 function fixture() {
@@ -153,4 +155,24 @@ test('KM-003 FR21 orderedFields follows fieldOrder, appends unknown live fields,
   assert.deepEqual(orderedFields(item).map((f) => f.id), [c.id, a.id, b.id]);
   a.deletedAt = 1;
   assert.deepEqual(orderedFields(item).map((f) => f.id), [c.id, b.id]);
+});
+
+test('KM-004 AC12 recents keep their order and drop ids that are gone, trashed or purged', () => {
+  const v = createVault('00000000000000ab');
+  const mk = (title, extra = {}) => createItem(v, 'note', { title, ...extra }, ctx());
+  const [a, b, c, d] = [mk('a'), mk('b'), mk('c'), mk('d')];
+  trashItem(v, c.id, ctx());
+  trashItem(v, d.id, ctx());
+  purgeItem(v, d.id, ctx());
+  assert.deepEqual(recentItems(v, [b.id, 'i_gone', c.id, d.id, a.id]).map((i) => i.title), ['b', 'a']);
+});
+
+test('KM-004 AC12 favourites: starred live items by title', () => {
+  const v = createVault('00000000000000ac');
+  const mk = (title) => createItem(v, 'note', { title }, ctx());
+  const [z, a, n, t] = [mk('z'), mk('a'), mk('n'), mk('t')];
+  for (const i of [z, a, t]) updateItem(v, i.id, { favorite: true }, ctx());
+  trashItem(v, t.id, ctx());
+  assert.deepEqual(favoriteItems(v).map((i) => i.title), ['a', 'z']);
+  assert.equal(n.favorite, false);
 });

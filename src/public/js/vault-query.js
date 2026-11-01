@@ -16,6 +16,14 @@ export function liveEnvs(vault, projectId) {
 
 export const liveItems = (vault) => vault.items.filter((i) => i.deletedAt === null && i.purgedAt === null);
 
+// The ids come from local settings and may outlive their item.
+export function recentItems(vault, ids) {
+  const live = new Map(liveItems(vault).map((i) => [i.id, i]));
+  return ids.map((id) => live.get(id)).filter(Boolean);
+}
+
+export const favoriteItems = (vault) => liveItems(vault).filter((i) => i.favorite).sort((a, b) => collator.compare(a.title, b.title));
+
 export function itemLiveEnvs(vault, item) {
   const scopes = new Set(item.scopes);
   return liveEnvs(vault).filter((e) => scopes.has(e.id));

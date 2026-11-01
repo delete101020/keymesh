@@ -2,7 +2,7 @@
 // actions below, and redraw on the regions emit() names.
 import { assertSupported } from './core/crypto.js';
 import { KeymeshError } from './core/errors.js';
-import { updateEnv, updateProject, deleteEnv, deleteProject, addEnv, restoreItemVersion } from './core/model.js';
+import { updateEnv, updateItem, updateProject, deleteEnv, deleteProject, addEnv, restoreItemVersion } from './core/model.js';
 import { openStore, StoreError } from './store.js';
 import { createSession, LockedError } from './session.js';
 import { acquireTabLock } from './tab-lock.js';
@@ -39,6 +39,7 @@ const emptyView = () => ({
   saveFailed: false,
   revealed: new Set(),
   pane: 'nav', // on narrow screens: nav | list | detail
+  fromHome: false, // the item was opened from the home screen, so Back returns there
   focus: null,
 });
 
@@ -147,6 +148,15 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
     const { filter } = state;
     if (filter.k === 'project' && !liveProjects(v).some((p) => p.id === filter.id)) state.filter = { k: 'all' };
     if (filter.k === 'env' && !liveEnvs(v).some((e) => e.id === filter.id)) state.filter = { k: 'all' };
+  }
+
+  // Local to this device and not worth interrupting anyone over: a failed write just forgets it.
+  function noteRecent(id) {
+    const recents = pushRecent(state.settings.recents, id);
+    if (recents.join() === state.settings.recents.join()) return;
+    state.settings = { ...state.settings, recents };
+    store.writeSettings(state.settings).catch(() => {});
+    emit('nav');
   }
 
   const draftDirty = () => state.mode === 'edit' && JSON.stringify(state.draft) !== state.draftBaseline;
@@ -281,6 +291,7 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
     async setFilter(filter) {
       if (!(await leaveDraft())) return;
       dropDraft();
+      state.fromHome = false;
       state.filter = filter;
       state.query = '';
       if (!app.items().some((i) => i.id === state.selectedId)) app.clearSelection();
@@ -299,13 +310,15 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       emit('list', 'pane');
     },
 
-    async selectItem(id) {
+    async selectItem(id, { fromHome = false } = {}) {
       if (!(await leaveDraft())) return;
       dropDraft();
       state.selectedId = id;
       state.revealed = new Set();
+      if (fromHome) state.fromHome = true;
       state.pane = 'detail';
       state.focus = 'detail-title';
+      noteRecent(id);
       emit('list', 'detail', 'pane');
     },
 
@@ -313,8 +326,9 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       if (state.pane === 'detail') {
         if (!(await leaveDraft())) return;
         dropDraft();
-        state.pane = 'list';
-        state.focus = 'list-head';
+        state.pane = state.fromHome ? 'nav' : 'list';
+        state.focus = state.fromHome ? 'nav-all' : 'list-head';
+        state.fromHome = false;
       } else {
         state.pane = 'nav';
         state.focus = 'nav-all';
@@ -424,6 +438,13 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       emit('detail');
     },
 
+    async toggleFavorite(id) {
+      const item = session.vault.items.find((i) => i.id === id);
+      const r = await change((v, ctx) => updateItem(v, id, { favorite: !item.favorite }, ctx) && undefined);
+      emit('nav', 'detail');
+      return r;
+    },
+
     async copyField(item, field) {
       let value = field.v;
       if (field.kind === 'otp') {
@@ -433,6 +454,7 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       }
       const ok = await clipboard.copy(value);
       if (!ok) return toast('Không copy được: trình duyệt đã từ chối.', 'error');
+      noteRecent(item.id);
       const warnProd = session?.vault && isProd(session.vault, item);
       if (warnProd) return toast('Đã copy giá trị của env prod. Sẽ xoá khỏi clipboard sau 30 giây.', 'warn');
       return toast('Đã copy. Sẽ xoá khỏi clipboard sau 30 giây.');
