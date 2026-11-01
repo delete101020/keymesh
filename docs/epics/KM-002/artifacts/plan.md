@@ -136,3 +136,12 @@ Làm trên nhánh `feat/KM-002-merge`, mỗi bước là một commit.
 - Không giữ khoá lạ ở cấp vault hay trong thực thể khi phải dựng lại thực thể; chỉ giữ khi thực thể được lấy nguyên một bên ở bước 1. Ghi ở 09.
 - Không đặt ngưỡng hiệu năng cho trình duyệt hay điện thoại (Concern 12); trình duyệt chỉ in số đo.
 - Không sửa các chỗ cũ của 02/03 không liên quan đến merge (ví dụ Playwright ở `docs/02` dòng 96).
+
+## Amendments
+
+Ghi trong lúc implement (2026-11-01). Chi tiết và lý do ở `implement.md` §5.
+
+1. **`fieldOrder` không sinh xung đột.** Mỗi lần thêm hay xoá field, `updateItem` đều đổi `fieldOrder`. Vì vậy AC14 (mỗi bên thêm một field) sẽ luôn là "cùng đổi" và bị đánh dấu nếu gộp `fieldOrder` như thuộc tính đơn của FR06. Cách làm: chỉ một bên đổi thì lấy bên đó; cả hai cùng đổi thì giữ tập id ba chiều theo thứ tự của bên có `clock.fieldOrder` thắng. Sau đó khớp với `fields` đã gộp. Ghi ở 05 và 09.
+2. **`history` gộp từ `local` và `remote`, không thêm `base.history`.** Bản nào của `base` mà cả hai bên đã cắt đi thì không nên quay lại.
+3. **Vault đo AC27.** 500 item × 8 field × 20 bản lịch sử là khoảng 13 MB, không phải 1 MB, vì mỗi bản lịch sử chép đủ 8 field. Ngưỡng 200 ms được chấm trên vault ~1 MB (500 × 8, không có lịch sử cũ). Hình dạng 20 bản lịch sử chỉ được đo và in ra.
+4. **Tombstone khi bên kia không purge.** Chỉ lấy `deletedAt` của bên không purge khi chính bên đó đã đổi `deletedAt` so với `base`. Lỗi này do property test tìm ra (seed 24587).
