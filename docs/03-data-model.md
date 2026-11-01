@@ -149,7 +149,7 @@ Mỗi giá trị có thể sửa độc lập đều có một đồng hồ `{ "
 | `otp` | mã TOTP hiện tại + đếm ngược | ✓ (copy mã, không copy secret) | ✓ (secret không bao giờ hiện ở màn xem) |
 
 - **File trong field nhiều dòng.** `multi` và `secret-multi` nhận nội dung từ file văn bản (nút *Chọn file…*, tối đa 64 KB). Vault không lưu file nhị phân; file lớn hơn hoặc nhị phân nằm ngoài phạm vi.
-- **`otp`.** `v` là URI `otpauth://totp/…` (đọc từ QR) hoặc secret base32 nhập tay. Client tính mã theo RFC 6238 bằng WebCrypto HMAC, hỗ trợ tham số `digits`, `period`, `algorithm` (SHA1, SHA256, SHA512) trong URI; mặc định 6 số, 30 giây, SHA1. Chỉ hỗ trợ TOTP; URI `otpauth://hotp/…` bị từ chối khi nhập. QR được đọc bằng camera (`getUserMedia` + `BarcodeDetector`, có thư viện giải mã QR dự phòng cho Safari/Firefox) hoặc từ ảnh chụp màn hình.
+- **`otp`.** `v` là URI `otpauth://totp/…` (đọc từ QR) hoặc secret base32 nhập tay. Client tính mã theo RFC 6238 bằng WebCrypto HMAC, hỗ trợ tham số `digits`, `period`, `algorithm` (SHA1, SHA256, SHA512) trong URI; mặc định 6 số, 30 giây, SHA1. Chỉ hỗ trợ TOTP; URI `otpauth://hotp/…` bị từ chối khi nhập. QR được đọc bằng camera (`getUserMedia` + `BarcodeDetector`; không có thư viện giải mã dự phòng vì trái quy ước không phụ thuộc bên thứ ba, KM-003 Concern 6. Trình duyệt không có `BarcodeDetector` thì báo rõ và mời nhập tay; cách đọc QR trên iPhone do KM-004 quyết định) hoặc từ ảnh chụp màn hình.
 
 ### Mẫu field theo loại item
 
@@ -173,6 +173,7 @@ Field `otp` không nằm trong mẫu nào; người dùng thêm vào item bất 
 
 - **Xoá env:** đặt `deletedAt` cho env đó. Các item vẫn **giữ** `envId` trong `scopes`, nhưng UI bỏ qua env đã xoá. Nhờ vậy, nếu thiết bị khác vẫn đang sửa item thì khi gộp không bị lỗi tham chiếu. Item không còn env sống nào thì hiện ở *Chưa gán*.
 - **Xoá project:** đặt tombstone cho project và mọi env của nó. Item xử lý như khi xoá env.
+- **Env sống dưới project đã xoá** (phép gộp có thể sinh ra, KM-002 Concern 10): coi như đã xoá khi hiển thị, không hiện ở điều hướng, không tính là env sống; item chỉ trỏ tới env đó vào *Chưa gán*. Không ghi gì thêm vào vault (KM-003 Concern 12, originator chốt 2026-11-01).
 - **Xoá item (vào thùng rác):** đặt `deletedAt`, **giữ nguyên** `fields`, `notes`, `history`. Item biến khỏi mọi danh sách, chỉ hiện trong *Thùng rác*. Khôi phục thì đặt `deletedAt = null`.
 - **Xoá trắng (purge):** khi item nằm trong thùng rác quá `TRASH_DAYS = 30` ngày, hoặc người dùng bấm *Xoá vĩnh viễn*: đặt `purgedAt`, **xoá trắng `fields`, `notes`, `history`, `title`**. Tombstone còn lại (`id`, `deletedAt`, `purgedAt`) giữ mãi để thiết bị khác biết item đã bị xoá. Việc dọn thùng rác chạy ở client khi mở khoá.
 - **Thay đổi đáng lưu lịch sử:** title, type, fields, notes, expires, scopes. Không tính `favorite`, `order` hay `fieldOrder`.
@@ -294,6 +295,7 @@ Cùng định dạng này được dùng cho nút *Tải backup* và cho **bản
 
 - `current` là trạng thái cục bộ mới nhất, có thể chưa push. `base` là bản server ở lần đồng bộ thành công gần nhất. Mỗi vault có cặp `current`/`base` riêng.
 - Không lưu plaintext, `accountKey` hay `vaultKey` dạng chưa bọc xuống đĩa trong bất kỳ trường hợp nào.
+- **Giá trị trước KM-006** (app chưa có server, KM-003): `meta.account` có `userId = null`, `username = null`; `metaVersion = 0`; `current.version = 0`; `current.dirty = true`; `base = null`; `deletedAt = null`. `authKey` không được lưu mà dẫn xuất lại từ password + `kdf` khi cần. KM-006 đăng ký chính bộ khoá này: `POST /api/register` lấy `kdf`, `wrappedAccountKey` từ `meta.account`, còn `vault` là `{ id, wrappedVaultKey, meta, blob: current.envelope }` của dòng trong `vaults`. Hàm `toRecord` ở `js/store.js` đổi một dòng thành `record` ở 09.
 
 ### Bản sao tự động ra file (chỉ ghi)
 

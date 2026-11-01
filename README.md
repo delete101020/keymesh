@@ -20,6 +20,14 @@ Dữ liệu mã hoá đầu-cuối, dùng được trên máy tính, Android và
 | 08 | [Lộ trình](docs/08-roadmap.md) | Các giai đoạn M0–M6, hướng chia sẻ nhiều người, các quyết định đã chốt |
 | 09 | [Hợp đồng lõi](docs/09-core-api.md) | Thao tác của `src/public/js/core/` (mật mã, model vault v2), loại lỗi, bộ vector cố định, epic nào dùng gì |
 
+## Chạy app cục bộ
+
+```
+npm start          # http://127.0.0.1:8787/, đúng CSP ở docs/04, không cần cài gì
+```
+
+Chỉ dùng dữ liệu thử: dữ liệu nằm trên đúng một trình duyệt và chưa có cách sao lưu (KM-003).
+
 ## Chạy test
 
 Không có dependency nào để cài; cần Node ≥ 20.
@@ -29,3 +37,9 @@ npm test               # node --test trên test/*.test.js
 npm run test:browser   # cùng bộ test trong Chrome/Edge headless (đặt CHROME_PATH nếu không tự tìm thấy)
 npm run vectors        # tính lại testkit/vectors.js bằng node:crypto và so với bản đã commit
 ```
+
+`npm run test:e2e` chạy app thật trên Chrome qua DevTools Protocol, không cần package nào (cần Node ≥ 22). Đặt `KEYMESH_SHOTS=<thư mục>` để lưu ảnh chụp màn hình, `CHROME_PATH` nếu Chrome nằm chỗ khác.
+
+## Ghi công
+
+Bộ sinh mật khẩu *Dễ nhớ* dùng [EFF Large Wordlist](https://www.eff.org/files/2016/07/18/eff_large_wordlist.txt) © Electronic Frontier Foundation, theo giấy phép [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) ([eff.org/copyright](https://www.eff.org/copyright)). Đã bỏ số xúc xắc và 4 từ có gạch nối. Chi tiết ở đầu `src/public/js/wordlist.js`.
