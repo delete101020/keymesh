@@ -17,7 +17,7 @@ import {
   purgeItem,
   validateVault,
 } from '../src/public/js/core/model.js';
-import { ctx, T0, DEV_A, DEV_B, hasCode, readCoreSource, withGlobal } from '../testkit/helpers.js';
+import { ctx, T0, DEV_A, DEV_B, hasCode, readCoreSource, readRepoFile, withGlobal } from '../testkit/helpers.js';
 
 const VID = '3f9c1a0b7d2e4c58';
 // Time n seconds after T0, on device A (laptop) unless told otherwise; B is the phone.
@@ -722,4 +722,21 @@ test('FR14 seed 24587: restore-then-purge on one side, other side untouched: the
   assert.deepEqual(merge(b, b, r), r);
   assert.deepEqual(merge(b, r, b), r);
   assert.equal(merge(b, fork(b), r).items[0].deletedAt, T0 + 11000);
+});
+
+// --- step 7: documentation ------------------------------------------------------------------------
+
+test('FR20 FR19 AC28 docs 05/09/03 carry the merge rules and 05 no longer contradicts the spec', async () => {
+  const sync = await readRepoFile('docs/05-sync.md');
+  const core = await readRepoFile('docs/09-core-api.md');
+  const data = await readRepoFile('docs/03-data-model.md');
+  assert.doesNotMatch(sync, /Toàn bộ item của \*\*bên thua\*\*|Toàn bộ item của bên thua/, '05 still says the whole losing item');
+  for (const rule of ['Xoá project và env', 'cùng tạo một id', 'Đã xử lý', 'HISTORY_MAX', 'Đồng hồ hoà hoàn toàn', 'Sửa nội dung', '"deleted-elsewhere"', 'hoặc khôi phục']) {
+    assert.ok(sync.includes(rule), `05 lacks: ${rule}`);
+  }
+  for (const rule of ['## `merge.js`', '`DELETED_ELSEWHERE = \'deleted-elsewhere\'`', 'conflict.at', 'Bảng xoá', 'amendment']) {
+    assert.ok(core.includes(rule), `09 lacks: ${rule}`);
+  }
+  assert.equal(DELETED_ELSEWHERE, 'deleted-elsewhere');
+  assert.ok(data.includes('"note": "deleted-elsewhere"'), '03 §1 lacks the note key');
 });

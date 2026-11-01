@@ -110,12 +110,16 @@ Mỗi giá trị có thể sửa độc lập đều có một đồng hồ `{ "
         "expires": { … }, "forkedFrom": { … }, "fieldOrder": { … }, "deletedAt": { … }
       },
       "conflict": null,           // hoặc { "at": 0, "fields": ["f_02"], "attrs": ["notes"] } → badge ⚠
+                                  // at: đồng hồ muộn nhất của các giá trị xung đột (09 § merge.js), không phải giờ hệ thống
+                                  // attrs có thể có "deletedAt" / "purgedAt" khi xoá cạnh tranh với sửa
       "history": [                // tối đa HISTORY_MAX = 20, mới nhất ở đầu
         {
           "at": 1761500000000,
           "rev": 3,
           "dev": "d_…",
           "reason": "edit",       // edit | conflict | restore
+          // "note": "deleted-elsewhere"  chỉ có trên bản conflict khi bên này chuyển item vào thùng rác
+          //                              mà bên kia sửa nội dung (05 § Xoá, thùng rác và sửa); câu chữ do UI lo
           "title": "…", "type": "…", "fields": [], "notes": "…", "expires": null, "scopes": []
         }
       ],
@@ -128,6 +132,7 @@ Mỗi giá trị có thể sửa độc lập đều có một đồng hồ `{ "
 ```
 
 - `field.label`, `field.kind`, `field.v` và `field.file` (nếu có) dùng chung đồng hồ `at/dev` của field: sửa bất kỳ phần nào của một field thì cả field được coi là đã đổi.
+- Bản lịch sử `reason: "conflict"` do phép gộp ghi (05, 09 § `merge.js`): trạng thái **trước khi gộp** của một bên thua ít nhất một giá trị. `rev` là `rev` của bên đó, `at`/`dev` là đồng hồ muộn nhất của bên đó. Khoá `note` là tuỳ chọn và hiện chỉ có giá trị `"deleted-elsewhere"`. Dữ liệu cũ không có `note` vẫn hợp lệ, nên không cần migrate.
 - `field.file` là tuỳ chọn, chỉ dùng cho `multi` và `secret-multi`: tên file gốc (ví dụ `"partnerx-uat.ovpn"`) khi nội dung được đọc từ file. Có `file` thì UI hiện tên file thay cho nội dung và có nút tải lại thành file đúng tên đó.
 - `fieldOrder` là một thuộc tính đơn. Field có trong `fields` mà không có trong `fieldOrder` (do bên kia mới thêm) được nối vào cuối khi hiển thị.
 - `scopes` và `tags` là **tập hợp**, không cần đồng hồ: khi gộp, phần thêm vào và phần bỏ ra so với `base` của cả hai bên đều được áp dụng.
