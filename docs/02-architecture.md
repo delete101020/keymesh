@@ -110,6 +110,7 @@ keymesh/
 │   ├── wrangler.toml          # pages_build_output_dir = "public", binding D1
 │   ├── public/                # Cloudflare Pages phục vụ thư mục này
 │   │   ├── index.html
+│   │   ├── styles.css
 │   │   ├── manifest.webmanifest
 │   │   ├── sw.js
 │   │   ├── _headers           # CSP và các security header (phải nằm trong thư mục được phục vụ)
@@ -119,11 +120,15 @@ keymesh/
 │   │       │   ├── bytes.js
 │   │       │   ├── errors.js
 │   │       │   ├── crypto.js
-│   │       │   ├── model.js   # schema, migrate v1 → v2, validate
+│   │       │   ├── model.js   # schema, validate
 │   │       │   └── merge.js
-│   │       ├── app.js         # khởi động, router, render
-│   │       ├── ui/            # các màn hình
+│   │       ├── app.js         # khởi động, trạng thái màn hình, hành động; không biết gì về DOM của màn hình
+│   │       ├── ui/            # các màn hình; ui/shell.js là điểm vào của trang
+│   │       ├── session.js     # khoá và vault trong bộ nhớ; mọi thay đổi đi qua session.mutate()
 │   │       ├── store.js
+│   │       ├── tab-lock.js, idle.js, clipboard.js   # một tab mở khoá, tự khoá, clipboard tự xoá
+│   │       ├── vault-query.js, vault-ops.js, history-diff.js, field-file.js   # logic thuần trên vault
+│   │       ├── otp.js, passgen.js, wordlist.js
 │   │       ├── sync.js
 │   │       ├── mirror.js      # bản sao tự động ra file (Chromium)
 │   │       └── config.js      # cấu hình theo domain
@@ -132,8 +137,8 @@ keymesh/
 │   │       └── [[route]].js   # router API (hoặc tách file theo nhóm)
 │   └── migrations/
 │       └── 0001_init.sql
-├── test/                      # *.test.js, chạy bằng node --test
-└── testkit/                   # helper, vector, runner test trên trình duyệt (không được phục vụ)
+├── test/                      # *.test.js, chạy bằng node --test; test/e2e/*.e2e.js chạy bằng npm run test:e2e
+└── testkit/                   # helper, vector, runner trình duyệt, serve.mjs (phục vụ cục bộ dưới CSP), e2e/ (harness CDP); không được phục vụ
 ```
 
 ## Triển khai và vận hành

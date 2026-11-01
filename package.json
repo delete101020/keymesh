@@ -8,8 +8,10 @@
     "node": ">=20"
   },
   "scripts": {
+    "start": "node testkit/serve.mjs",
     "test": "node --test \"test/**/*.test.js\"",
     "test:browser": "node testkit/browser/run.mjs",
+    "test:e2e": "node --test --test-concurrency=1 --test-timeout=180000 \"test/e2e/*.e2e.js\"",
     "vectors": "node testkit/gen-vectors.mjs"
   }
 }

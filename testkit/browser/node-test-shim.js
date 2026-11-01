@@ -1,10 +1,10 @@
 // Minimal stand-in for `node:test` so the same test files run in a browser.
-// Supports flat `test(name, [options], fn)` only; tests run sequentially in registration order.
+// Supports flat `test(name, [options], fn)` and options.skip only; tests run sequentially in registration order.
 const registered = [];
 
 export function test(name, options, fn) {
   if (typeof options === 'function') fn = options;
-  registered.push({ name, fn });
+  registered.push({ name, fn, skip: typeof options === 'object' ? options?.skip : false });
 }
 export const it = test;
 export default test;
@@ -27,6 +27,7 @@ export async function runFiles(files, onResult) {
       continue;
     }
     for (const t of registered.slice(start)) {
+      if (t.skip) continue;
       const t0 = performance.now();
       const diagnostics = [];
       let r;

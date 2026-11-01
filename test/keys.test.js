@@ -185,3 +185,15 @@ test('NFR05 key handles expose no key bytes and cannot be swapped between roles'
   await assert.rejects(wrapVaultKey(acc, acc, newVaultId()), hasCode('invalid'));
   await assert.rejects(wrapAccountKey({}, enc), hasCode('invalid'));
 });
+
+test('KM-003 AC05 FR05 NFC and NFD forms of a password derive the same keys', async () => {
+  const kdf = newKdf();
+  const nfc = 'mật khẩu ệ'.normalize('NFC');
+  const nfd = nfc.normalize('NFD');
+  assert.notEqual(nfc, nfd);
+  const a = await deriveFromPassword(nfc, kdf);
+  const b = await deriveFromPassword(nfd, kdf);
+  assert.deepEqual(a.authKey, b.authKey);
+  const accountKey = await generateAccountKey();
+  await unwrapAccountKey(await wrapAccountKey(accountKey, a.encKey), b.encKey);
+});

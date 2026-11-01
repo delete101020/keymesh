@@ -51,7 +51,7 @@ erDiagram
 | User, session (phía server) | Tiền tố + 16 hex | `u_…`, `s_…` |
 
 - Id lấy từ `crypto.getRandomValues`, không chứa thông tin gì, nên không cần băm hay HMAC trước khi gửi lên server.
-- Id migrate từ v1 (hex trần) được **giữ nguyên**. Code chấp nhận cả dạng có và không có tiền tố, và không suy loại thực thể từ tiền tố.
+- Code chấp nhận cả dạng có và không có tiền tố, và không suy loại thực thể từ tiền tố.
 - UI không hiện id thô. Màn debug hoặc audit log hiện dạng rút gọn (8 ký tự đầu).
 
 ### Đồng hồ (`clock`)
@@ -149,7 +149,7 @@ Mỗi giá trị có thể sửa độc lập đều có một đồng hồ `{ "
 | `otp` | mã TOTP hiện tại + đếm ngược | ✓ (copy mã, không copy secret) | ✓ (secret không bao giờ hiện ở màn xem) |
 
 - **File trong field nhiều dòng.** `multi` và `secret-multi` nhận nội dung từ file văn bản (nút *Chọn file…*, tối đa 64 KB). Vault không lưu file nhị phân; file lớn hơn hoặc nhị phân nằm ngoài phạm vi.
-- **`otp`.** `v` là URI `otpauth://totp/…` (đọc từ QR) hoặc secret base32 nhập tay. Client tính mã theo RFC 6238 bằng WebCrypto HMAC, hỗ trợ tham số `digits`, `period`, `algorithm` (SHA1, SHA256, SHA512) trong URI; mặc định 6 số, 30 giây, SHA1. Chỉ hỗ trợ TOTP; URI `otpauth://hotp/…` bị từ chối khi nhập. QR được đọc bằng camera (`getUserMedia` + `BarcodeDetector`, có thư viện giải mã QR dự phòng cho Safari/Firefox) hoặc từ ảnh chụp màn hình.
+- **`otp`.** `v` là URI `otpauth://totp/…` (đọc từ QR) hoặc secret base32 nhập tay. Client tính mã theo RFC 6238 bằng WebCrypto HMAC, hỗ trợ tham số `digits`, `period`, `algorithm` (SHA1, SHA256, SHA512) trong URI; mặc định 6 số, 30 giây, SHA1. Chỉ hỗ trợ TOTP; URI `otpauth://hotp/…` bị từ chối khi nhập. QR được đọc bằng camera (`getUserMedia` + `BarcodeDetector`; không có thư viện giải mã dự phòng vì trái quy ước không phụ thuộc bên thứ ba, KM-003 Concern 6. Trình duyệt không có `BarcodeDetector` thì báo rõ và mời nhập tay; cách đọc QR trên iPhone do KM-004 quyết định) hoặc từ ảnh chụp màn hình.
 
 ### Mẫu field theo loại item
 
@@ -173,6 +173,7 @@ Field `otp` không nằm trong mẫu nào; người dùng thêm vào item bất 
 
 - **Xoá env:** đặt `deletedAt` cho env đó. Các item vẫn **giữ** `envId` trong `scopes`, nhưng UI bỏ qua env đã xoá. Nhờ vậy, nếu thiết bị khác vẫn đang sửa item thì khi gộp không bị lỗi tham chiếu. Item không còn env sống nào thì hiện ở *Chưa gán*.
 - **Xoá project:** đặt tombstone cho project và mọi env của nó. Item xử lý như khi xoá env.
+- **Env sống dưới project đã xoá** (phép gộp có thể sinh ra, KM-002 Concern 10): coi như đã xoá khi hiển thị, không hiện ở điều hướng, không tính là env sống; item chỉ trỏ tới env đó vào *Chưa gán*. Không ghi gì thêm vào vault (KM-003 Concern 12, originator chốt 2026-11-01).
 - **Xoá item (vào thùng rác):** đặt `deletedAt`, **giữ nguyên** `fields`, `notes`, `history`. Item biến khỏi mọi danh sách, chỉ hiện trong *Thùng rác*. Khôi phục thì đặt `deletedAt = null`.
 - **Xoá trắng (purge):** khi item nằm trong thùng rác quá `TRASH_DAYS = 30` ngày, hoặc người dùng bấm *Xoá vĩnh viễn*: đặt `purgedAt`, **xoá trắng `fields`, `notes`, `history`, `title`**. Tombstone còn lại (`id`, `deletedAt`, `purgedAt`) giữ mãi để thiết bị khác biết item đã bị xoá. Việc dọn thùng rác chạy ở client khi mở khoá.
 - **Thay đổi đáng lưu lịch sử:** title, type, fields, notes, expires, scopes. Không tính `favorite`, `order` hay `fieldOrder`.
@@ -212,7 +213,7 @@ Chốt ở KM-001 (build-plan, originator xác nhận 2026-10-30). Khi đã có 
 
 | Tham số | Giá trị |
 |---|---|
-| Đầu vào PBKDF2 | Byte UTF-8 của master password, không chuẩn hoá Unicode |
+| Đầu vào PBKDF2 | Byte UTF-8 của master password **sau khi chuẩn hoá Unicode NFC** (KM-003 Concern 2: mật khẩu tiếng Việt có thể gõ ra NFC hoặc NFD tuỳ bàn phím; đổi lúc chưa có dữ liệu thật, mật khẩu trong vector đã ở dạng NFC nên vector không đổi) |
 | `masterKey` | 32B, đầu ra PBKDF2-HMAC-SHA256 với `kdf.salt` (16B) và `kdf.iter` (600 000 ≤ `iter` ≤ 6 000 000; ngoài khoảng này là `unsupported` trước khi chạy PBKDF2, vì `kdf` do server trả về lúc đăng nhập) |
 | HKDF | HKDF-SHA256, **salt rỗng** (theo RFC 5869 §2.2 tương đương HashLen byte 0), đầu ra L = **32B** cho cả `encKey`, `authKey`, `prfKey` |
 | `info` của HKDF | Byte UTF-8 của `keymesh/enc`, `keymesh/auth`, `keymesh/prf` |
@@ -294,6 +295,7 @@ Cùng định dạng này được dùng cho nút *Tải backup* và cho **bản
 
 - `current` là trạng thái cục bộ mới nhất, có thể chưa push. `base` là bản server ở lần đồng bộ thành công gần nhất. Mỗi vault có cặp `current`/`base` riêng.
 - Không lưu plaintext, `accountKey` hay `vaultKey` dạng chưa bọc xuống đĩa trong bất kỳ trường hợp nào.
+- **Giá trị trước KM-006** (app chưa có server, KM-003): `meta.account` có `userId = null`, `username = null`; `metaVersion = 0`; `current.version = 0`; `current.dirty = true`; `base = null`; `deletedAt = null`. `authKey` không được lưu mà dẫn xuất lại từ password + `kdf` khi cần. KM-006 đăng ký chính bộ khoá này: `POST /api/register` lấy `kdf`, `wrappedAccountKey` từ `meta.account`, còn `vault` là `{ id, wrappedVaultKey, meta, blob: current.envelope }` của dòng trong `vaults`. Hàm `toRecord` ở `js/store.js` đổi một dòng thành `record` ở 09.
 
 ### Bản sao tự động ra file (chỉ ghi)
 
@@ -402,33 +404,3 @@ CREATE INDEX dt_audit_log_user_id_at_idx ON dt_audit_log(user_id, at DESC);
 - **Số snapshot:** giữ 30 bản gần nhất **cho mỗi vault**. Khi PUT, chép bản cũ sang `dt_vault_snapshot` rồi xoá bớt bản cũ trong cùng một `batch()`.
 - **Những gì server biết:** username, số vault, kích thước và thời điểm sửa của từng vault, thiết bị, IP (dạng hash, dùng cho rate limit). Server **không** biết tên vault, tên project, env, item hay số lượng item.
 - **Multi-user sau này:** bảng `dt_user` và `dt_vault` đã tách riêng, nên muốn chia sẻ chỉ cần thêm `dt_org`, `dt_member`, `dt_vault_member` hoặc `dt_env_key`. Một vault là đơn vị chia sẻ tự nhiên: bọc `vaultKey` bằng khoá công khai của từng thành viên. Xem [08-roadmap.md](08-roadmap.md).
-
----
-
-## 5. Migrate v1 → v2
-
-Có hai đường vào:
-
-1. **Import file `envvault.json` v1** (`"format": "envvault"`, tên cũ của dự án): nhập mật khẩu cũ để giải mã.
-2. **Import từ localStorage** (`envvault`), nếu chạy cùng origin với bản v1. Trường hợp này hiếm, vì v1 chạy dưới `file://` hoặc localhost.
-
-Dữ liệu v1 được import vào **vault đang chọn** (mặc định là vault đầu tiên), hoặc vào một vault mới nếu người dùng chọn.
-
-Các bước chuyển đổi trong `model.js`:
-
-```text
-clock0 = { at: now, dev: deviceId }
-for project in v1.projects:
-    for (i, env) in project.envs:  envs.push({...env, projectId: project.id, order: i, rev: 1, clock: all(clock0), …timestamps})
-    project = {id, name, order, rev: 1, clock: all(clock0), …timestamps}
-for item in v1.items:
-    item.rev = history.length + 1; item.deletedAt = null; item.purgedAt = null
-    item.tags = []; item.favorite = false; item.conflict = null
-    item.clock = all(clock0); item.fieldOrder = fields.map(f => f.id)
-    for field in item.fields: field.at = clock0.at; field.dev = clock0.dev; field.deletedAt = null
-    history[*].rev, reason = 'edit'
-giữ nguyên mọi id của v1 (hex trần)
-mã hoá bằng vaultKey của vault đích → PUT lên server
-```
-
-Sau khi migrate, giữ nguyên file v1 và để người dùng tự xoá.
