@@ -6,6 +6,8 @@ import { icon } from './icons.js';
 import { renderSetup, renderUnlock, renderError } from './gate.js';
 import { renderNav } from './nav.js';
 import { renderList } from './list.js';
+import { renderDetail, stopOtpTicks } from './detail.js';
+import { renderEdit } from './edit.js';
 
 const root = document.getElementById('root');
 const toastEl = document.getElementById('toast');
@@ -46,6 +48,7 @@ function setPane() {
 
 function renderScreen() {
   const { screen, errorDetail } = app.state;
+  stopOtpTicks();
   main = null;
   if (screen === 'main') {
     main = buildMain();
@@ -68,6 +71,10 @@ function drawRegions(regions) {
   if (regions.includes('search')) main.search.value = app.state.query;
   if (regions.includes('nav')) replaceRegion(main.side, renderNav(app));
   if (regions.includes('list')) replaceRegion(main.list, renderList(app));
+  if (regions.includes('detail')) {
+    stopOtpTicks();
+    replaceRegion(main.detail, app.state.mode === 'view' ? renderDetail(app) : renderEdit(app));
+  }
   if (app.state.focus) {
     const key = app.state.focus;
     app.state.focus = null;

@@ -93,7 +93,7 @@ test('KM-003 AC51 NFR10 text colours reach 4.5:1 in both themes', { skip }, asyn
   const pairs = [
     ['text', 'bg'], ['text', 'panel'], ['text', 'panel2'], ['muted', 'bg'], ['muted', 'panel'], ['muted', 'panel2'],
     ['accent', 'bg'], ['accent', 'panel'], ['accent-text', 'accent'], ['danger', 'panel'], ['danger', 'panel2'], ['danger', 'danger-bg'],
-    ['warn', 'warn-bg'], ['warn', 'panel'], ['warn', 'bg'], ['chip-text', 'chip'], ['shared-text', 'shared'], ['shared-text', 'panel'], ['shared-text', 'bg'], ['bg', 'text'],
+    ['warn', 'warn-bg'], ['warn', 'panel'], ['warn', 'bg'], ['chip-text', 'chip'], ['shared-text', 'shared'], ['shared-text', 'panel'], ['shared-text', 'bg'], ['bg', 'text'], ['bg', 'danger'],
   ];
   for (const [name, set] of [['light', light], ['dark', dark]]) {
     for (const [fg, bg] of pairs) {

@@ -32,6 +32,7 @@ button:hover{border-color:var(--muted)}
 button:disabled{opacity:.6;cursor:default}
 button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
 button.danger{color:var(--danger)}
+button.danger-fill{background:var(--danger);border-color:var(--danger);color:var(--bg)}
 button.icon{background:none;border-color:transparent;width:30px;height:30px;padding:0;color:var(--muted);flex:none}
 button.icon:hover{background:var(--panel2);color:var(--text)}
 button.block{width:100%;padding:10px 12px}
@@ -75,6 +76,8 @@ header.top{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bott
 .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
 .search kbd{position:absolute;right:8px;top:50%;transform:translateY(-50%);font:11px var(--mono);color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
 .spacer{flex:1}
+a.icon-link{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);border-radius:6px;flex:none}
+a.icon-link:hover{background:var(--panel2);color:var(--text)}
 .cols{display:grid;grid-template-columns:240px 340px 1fr;min-height:0}
 .side,.list,.detail{overflow:auto;min-height:0;min-width:0}
 .side{border-right:1px solid var(--line);padding:8px;background:var(--panel)}
@@ -82,7 +85,7 @@ button.m-back{display:none}
 
 /* Nav */
 .nav-row{display:flex;align-items:center;gap:2px}
-.nav-item{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:none;border-color:transparent;min-height:32px;justify-content:flex-start;text-align:left}
+.nav-item{flex:1;width:100%;min-width:0;display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:none;border-color:transparent;min-height:32px;justify-content:flex-start;text-align:left}
 .nav-item:hover{background:var(--panel2);border-color:transparent}
 .nav-item.on{background:var(--chip);color:var(--chip-text)}
 .nav-item .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -197,6 +200,9 @@ input[type=range]{padding:0}
 /* Narrow: one pane at a time */
 @media (max-width:899px){
   header.top{padding:6px 8px;gap:6px}
+  .spacer{display:none}
+  .search{max-width:none}
+  a.icon-link{width:var(--tap);height:var(--tap)}
   .brand span:last-child,.search kbd{display:none}
   .cols{grid-template-columns:minmax(0,1fr)}
   .side,.list,.detail{border:0}

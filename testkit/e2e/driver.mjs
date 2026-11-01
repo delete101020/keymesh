@@ -324,3 +324,16 @@ export async function grepDir(dir, needles) {
 
 export const tempDir = () => mkdtemp(join(tmpdir(), 'keymesh-tmp-'));
 export const removeDir = (d) => rm(d, { recursive: true, force: true });
+
+// Creates an item through the form. values: { label: text }, envs: names as "Project / env".
+export async function createItem(page, { type = 'Login', title, values = {}, envs = [] }) {
+  await page.click('Thêm item');
+  await page.click(type);
+  await page.fill('Tiêu đề', title);
+  for (const [label, v] of Object.entries(values)) await page.fill(`Giá trị ${label}`, v);
+  for (const e of envs) await page.click(e);
+  await page.click('Lưu');
+  await page.waitFor(`document.querySelector('h2[data-fk=detail-title]')?.textContent === ${JSON.stringify(title)}`, { what: `item "${title}" saved` });
+}
+
+export const fieldOrderOnScreen = (page) => page.eval(`[...document.querySelectorAll('.field .lbl')].map((x) => x.textContent)`);
