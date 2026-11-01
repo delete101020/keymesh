@@ -153,3 +153,5 @@ Ghi trong lúc implement.
 5. **Vuốt mép trên iOS (`ui/nav-history.js`, `test/e2e/mobile.e2e.js`), chưa có trong Risks.** Vuốt mép của app chồng lên cử chỉ quay lại của hệ thống: WebKit tải lại cả trang và vault bị khoá. Log sự kiện cho thấy `popstate`, `pagehide`, rồi `load`. Trên iOS giờ để hệ thống xử lý; app nhận `popstate` như một Back bình thường.
 6. **Bước 10 trên iOS chạy bằng một bộ điều khiển XCUITest một lần (chạm thật, phím Home, màn đa nhiệm), không vào repo.** Xcode nằm ở `~/Downloads/Xcode.app`, dùng qua `DEVELOPER_DIR`, không đổi `xcode-select`.
 7. **`testkit/browser/run.mjs`, `index.html` báo trang bị ẩn khi hết giờ.** Đo được: màn hình khoá thì trang Safari `hidden`, timer gần như dừng, bộ test trông như treo.
+8. **Originator chấp nhận việc màn đa nhiệm lộ nội dung cho M2 (2026-11-01).** Tiêu chí ở intent §5 và §6 đã đổi; `KM-004-AC06` ở §5 chỉ còn phần khoá nền, phần ảnh màn đa nhiệm giữ làm giới hạn đã đo. Tự che lại secret chuyển sang KM-012.
+9. **Originator đồng ý chặn đề nghị lưu mật khẩu ở ô OTP, nhưng chưa tìm được cách làm được; không đổi code.** Master password giữ nguyên theo cùng quyết định. Kết quả đo ở `implement.md` §6.

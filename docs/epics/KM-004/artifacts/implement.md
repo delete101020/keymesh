@@ -27,7 +27,8 @@
 | 3 | 5–6 | `6b96773` | `npm test`, `mobile.e2e.js`, `lock.e2e.js` | done |
 | 4 | 7–8 | `9289661` | `npm test`, `test:e2e` (88/88) | done |
 | 5 | 9–11 | `d3ecb32` và commit tài liệu | Cả bốn lệnh test; giả lập Android | **một phần:** bước 9 xong; bước 10 còn iOS và năm mục KM-003; bước 11 ghi theo kết quả hiện có, phải cập nhật sau bước 10 |
-| 6 | 10 (iOS), 11 | `63ad742`, `5a09f64` và commit tài liệu | Cả bốn lệnh test; giả lập iOS 18.6 | **một phần:** phần iOS xong, tìm và sửa 2 lỗi; còn năm mục KM-003, copy bằng tay trên Safari và Firefox desktop, và quyết định về màn đa nhiệm |
+| 6 | 10 (iOS), 11 | `63ad742`, `5a09f64` và commit tài liệu | Cả bốn lệnh test; giả lập iOS 18.6 | **một phần:** phần iOS xong, tìm và sửa 2 lỗi; còn năm mục KM-003, copy bằng tay trên Safari và Firefox desktop |
+| 7 | 10, 11 | Commit này và `baae3c9` | Safari 216/216; giả lập iOS 18.6 cho ô OTP | **một phần:** ghi hai quyết định của originator, mở KM-012; ô OTP không chặn được; còn năm mục KM-003, copy bằng tay trên Safari và Firefox desktop |
 
 ## 3. What was built
 
@@ -61,7 +62,7 @@
 | `KM-004-AC03` | **Chưa chạy** | Cả năm mục, cần originator |
 | `KM-004-AC04` | Đạt trên cả hai | Android: ở standalone offline mới tới màn khoá, mở khoá offline đã kiểm ở tab Chrome. iOS: đủ cả mật khẩu sai và đúng ở standalone |
 | `KM-004-AC05` | Đạt, cả trên iOS | Không có |
-| `KM-004-AC06` | **Fail một nửa:** khoá nền đạt, màn đa nhiệm lộ secret, trên cả hai giả lập | Quyết định của originator |
+| `KM-004-AC06` | Đạt theo tiêu chí đã đổi: khoá nền đạt trên cả hai giả lập. Màn đa nhiệm lộ secret trên cả hai, originator chấp nhận cho M2 (2026-11-01) | Không có; tự che lại ở KM-012 |
 | `KM-004-AC07` | Đạt | Không có |
 | `KM-004-AC08` | Đạt trên Chrome, Android, iOS | Android: vuốt mép chỉ thử bằng touch giả lập. iOS: vuốt mép và 3 lần chạm đều thật, sau khi sửa lỗi |
 | `KM-004-AC09` | Một phần | Tài liệu đúng với hiện tại, phải cập nhật lần cuối sau bước 10 |
@@ -231,7 +232,7 @@ back after ~8 s [vis, shield, unlocked]: ["visible",false,true]
 back after 65 s [vis, unlocked, title in DOM, lock text]: ["visible",false,false,true]
 ```
 
-**Màn đa nhiệm fail:** ảnh hiện rõ giá trị thử `ANDROIDSECRET` đang được bấm hiện, cả ở tab và standalone (`evidence/android-standalone-switcher.png`). Khi mở màn đa nhiệm trang không nhận được sự kiện nào:
+**Màn đa nhiệm lộ (giới hạn đã chấp nhận, xem intent §6):** ảnh hiện rõ giá trị thử `ANDROIDSECRET` đang được bấm hiện, cả ở tab và standalone (`evidence/android-standalone-switcher.png`). Khi mở màn đa nhiệm trang không nhận được sự kiện nào:
 
 ```
 in switcher: ["visible",true,false]         (visibility, hasFocus, có #shield)
@@ -397,6 +398,7 @@ Xem `test/settings.test.js`, `test/vault-query.test.js`, `mobile.e2e.js` ở tr�
 10. iOS chạy bằng bộ điều khiển XCUITest một lần thay vì đi tay (amendment 6). Bộ này không kiểm được copy trên Safari desktop.
 11. **Sự cố lúc kiểm, lỗi của script, không phải của app.** Một lần chạm trượt vào thanh địa chỉ của Safari nên chuỗi thử `JBSWY3DPEHPK3PXP` bị gõ vào đó và đi tới gợi ý tìm kiếm của Google. Đây là chuỗi mẫu công khai, không phải secret. Đã thêm chặn chạm ngoài vùng trang. Ngoài ra Simulator đồng bộ clipboard với máy Mac, nên clipboard Mac có thể đã bị ghi đè bằng giá trị thử trong lúc kiểm.
 12. `testkit/browser/run.mjs` và `index.html` thêm báo trang bị ẩn khi hết giờ, để lần treo sau tự giải thích. Thuộc bước 1, thêm sau khi đo được nguyên nhân.
+13. Không chặn được đề nghị Strong Password ở ô OTP dù originator đã đồng ý; không đổi code (amendment 9, kết quả đo ở §6). Tiêu chí `AC06` đổi theo quyết định của originator (amendment 8).
 
 ## 6. Discovered work
 
@@ -405,19 +407,34 @@ Xem `test/settings.test.js`, `test/vault-query.test.js`, `mobile.e2e.js` ở tr�
 
 | Item | Where it went |
 |---|---|
-| Màn đa nhiệm lộ nội dung; web không có cách chặn đã biết | Chờ originator, §7 |
-| Chrome đề nghị lưu master password vào Google Password Manager (thấy trên giả lập, sau khi mở khoá) | Chưa làm; originator quyết có đổi `autocomplete` không |
+| Màn đa nhiệm lộ nội dung; web không có cách chặn đã biết | Originator chấp nhận cho M2 (intent §6); tự che lại ở `docs/epics/KM-012/KM-012.md` |
+| Chrome đề nghị lưu master password vào Google Password Manager (thấy trên giả lập, sau khi mở khoá) | Originator quyết giữ nguyên (2026-11-01), để ai dùng trình quản lý mật khẩu vẫn dùng được |
 | Trên trang chủ hẹp, "Tất cả" vẫn tô như đang chọn dù chưa vào list | Chưa làm; nhỏ, có từ KM-003 |
-| iOS đề nghị tạo và lưu "Strong Password" ở ô master password và cả ô secret, ô OTP của item; sau khi mở khoá hỏi "Save Password?". Cùng loại với việc của Chrome ở trên | Chưa làm; originator quyết cùng lúc với Chrome |
+| iOS đề nghị tạo và lưu "Strong Password" ở ô master password và cả ô secret, ô OTP của item; sau khi mở khoá hỏi "Save Password?". Cùng loại với việc của Chrome ở trên | Master password: giữ nguyên. Ô OTP: originator muốn chặn, **chưa có cách làm được** (bảng dưới) |
 | Trên màn khoá iOS, bàn phím tự bật che banner "Tải lại" nên phải ẩn bàn phím mới thấy | Chưa làm; nhỏ |
 | Trên WebKit, rời app trước khi chạm lại thì secret còn trong clipboard, không có cách xoá từ web | Ghi ở `docs/04`; xem xét cùng khi kiểm máy thật |
 | Kiểm `_headers` trên Cloudflare | `docs/epics/KM-005/KM-005.md` |
+
+**Đo việc chặn Strong Password ở ô OTP (giả lập iOS 18.6, Safari tab, chạm thật, thoát Safari giữa các lần).** Originator đồng ý chặn, nhưng không cách nào dưới đây vừa chặn được vừa che được secret trong item Login, nên code giữ nguyên, không đổi gì:
+
+| Cách thử | Kết quả |
+|---|---|
+| `autocomplete="one-time-code"`, vẫn `type=password` | Sheet vẫn hiện |
+| `type=text` che bằng `-webkit-text-security`, có ô Password trong form, chạm OTP (2 lần) | Sheet vẫn hiện |
+| Như trên, chạm URL thay vì OTP | Không hiện: chỉ ô đã che mới gây sheet |
+| Như trên, đã xoá ô Password khỏi form | Không hiện, nhưng item Login mặc định có ô Password |
+| Như trên, bỏ che (`type=text`, không che) | Không hiện, nhưng secret lộ trên màn hình |
+| Như trên, tách ô khỏi form bằng `form=""` | Sheet vẫn hiện |
+| Che bằng CSS cả ô Password lẫn ô OTP, chạm Password; chạm OTP | Sheet vẫn hiện ở cả hai lần thử |
+
+`type=text` còn có cái giá riêng: mất cam kết bàn phím không học nội dung ô như với `type=password`. Mỗi cách chỉ đo trên iOS 18.6 giả lập.
 
 ## 7. Known gaps
 
 > *What a reviewer should look at hardest.*
 
-- **`AC06` chưa đạt: màn đa nhiệm lộ secret đang hiện, trên cả Android và iOS.** Đây là tiêu chí ở intent §5, nên epic không đóng được cho tới khi originator chọn: chấp nhận và đổi tiêu chí, thêm tự che lại secret sau vài giây (giảm chứ không hết, vì tiêu đề và username vẫn hiện), hoặc giữ tiêu chí và để M2 mở. Đề xuất của engineer: chấp nhận cho M2 vì chỉ dùng dữ liệu thử, và mở intent riêng cho việc tự che lại.
+- **Màn đa nhiệm vẫn lộ secret đang hiện, trên cả Android và iOS.** Originator chấp nhận cho M2 vì chỉ dùng dữ liệu thử (intent §6), nên tiêu chí `AC06` đã đổi chứ lỗ hổng không biến mất. Phải xem lại trước khi cất secret thật trên điện thoại (KM-012).
+- **iOS vẫn đề nghị Strong Password ở ô OTP của item có ô Password.** Sheet có "Not Now" và mỗi lần tải trang chỉ hiện một lần. "Save & Fill" chưa thử nên chưa biết nó điền vào ô nào.
 - **Bản sửa clipboard mới kiểm trên iOS và Chrome.** Chưa kiểm lại trên giả lập Android và Safari, Firefox desktop bằng tay. Giá trị đọc lại khi copy trên Android vẫn chưa xác nhận.
 - **`ui/nav-history.js` nhận diện iOS bằng `'standalone' in navigator`.** E2E chỉ giả lập thuộc tính này trên Chrome; hành vi thật đã kiểm một lần trên iOS 18.6.
 - **`AC03`: năm mục KM-003 chưa chạy.**

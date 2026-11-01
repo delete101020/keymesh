@@ -63,7 +63,7 @@ Originator kiểm được bằng tay với dữ liệu thử, trên **máy gi�
 - **Năm mục kiểm tay còn lại của KM-003 (`verify.md` §3), trên máy tính thật:** tắt Wi-Fi (`AC06`), ngủ máy 11 phút (`AC10`), camera thật (`AC32`), từ chối camera (`AC33`), clipboard bị từ chối vì mất focus (`AC36`). Mỗi mục có kết quả ghi lại.
 - **Cài và offline:** trên cả hai máy giả lập, thêm được app ra màn hình chính, mở lên không có thanh trình duyệt. Tắt mạng rồi mở lại vẫn vào được và mở khoá được.
 - **Bản mới:** khi có phiên bản app mới, người dùng được báo và tự chọn lúc tải lại.
-- **Khoá khi chuyển nền:** chuyển sang app khác quá thời gian đã đặt (mặc định 60 giây) thì quay lại phải nhập mật khẩu. Màn đa nhiệm không để lộ secret.
+- **Khoá khi chuyển nền:** chuyển sang app khác quá thời gian đã đặt (mặc định 60 giây) thì quay lại phải nhập mật khẩu. Màn đa nhiệm không để lộ secret. **Đổi 2026-11-01 (originator quyết định, sau khi đo):** tiêu chí này chỉ còn là khoá khi chuyển nền; việc màn đa nhiệm lộ nội dung được chấp nhận cho M2, xem mục 6.
 - **Chỉnh tự khoá:** đổi được thời gian trong cài đặt của thiết bị, và giá trị còn sau khi khoá rồi mở lại.
 - **Dùng trên màn hình nhỏ:** từ lúc mở khoá đến lúc copy được mật khẩu của item gần đây tối đa 3 lần chạm; các nguyên tắc còn lại ở `docs/07-features.md` § Mobile đều làm được, kể cả Back của Android.
 - **Tài liệu khớp:** tiêu chí M2 ở `docs/08-roadmap.md` và mục "Xong khi" ở `KM-004.md` ghi đúng là đạt trên giả lập, kèm điều kiện ở dòng đầu mục 6.
@@ -73,6 +73,7 @@ Originator kiểm được bằng tay với dữ liệu thử, trên **máy gi�
 > *Adjacent problems we are deliberately not solving here.*
 
 - **Kiểm trên điện thoại thật.** Giả lập không nói gì về tốc độ mở khoá thật, camera, hay cách máy thật xoá dữ liệu. M2 đạt không chứng minh G3 trên máy thật; originator chấp nhận điều này, với điều kiện: **chưa kiểm trên điện thoại thật thì chưa cất secret thật trên điện thoại** (chốt 2026-11-01).
+- **Che nội dung ở màn đa nhiệm** (chốt 2026-11-01): đã đo trên giả lập Android và iOS, ảnh ở màn đa nhiệm giữ cả secret đang hiện, và web không có cách chặn đã biết. Chấp nhận cho M2 vì chỉ dùng dữ liệu thử. Việc tự che lại secret chuyển sang KM-012. Xem lại trước khi cất secret thật trên điện thoại.
 - **Quét QR trên iPhone** (KM-003 Concern 6, chốt 2026-11-01): nhập tay là đủ. Không đổi quy ước không dùng thư viện bên thứ ba.
 - **Cất secret thật trên điện thoại, và chống Safari tự xoá dữ liệu** (KM-003 Concern 16): chỉ dùng dữ liệu thử nên mất cũng chấp nhận được. Xem lại cùng lúc kiểm trên điện thoại thật.
 - **Ngưỡng tốc độ mở khoá trên điện thoại** (KM-001 Concern 4): không đo được trên giả lập; đo khi kiểm trên điện thoại thật.

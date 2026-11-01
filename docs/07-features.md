@@ -92,7 +92,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-PWA-01 | Cài được lên màn hình chính (manifest, icon), mở ở chế độ standalone | P1 | ✅ giả lập Android và iOS |
 | F-PWA-02 | Mở được khi offline (Service Worker cache app shell) | P1 | ✅ giả lập Android và iOS |
 | F-PWA-03 | Báo khi có phiên bản app mới và cho bấm để tải lại | P2 | ✅ |
-| F-PWA-04 | Giao diện mobile riêng (xem bên dưới) | P1 | ✅ một phần: màn đa nhiệm vẫn lộ nội dung trên giả lập Android và iOS (04) |
+| F-PWA-04 | Giao diện mobile riêng (xem bên dưới) | P1 | ✅ một phần: màn đa nhiệm vẫn lộ nội dung trên giả lập Android và iOS, đã chấp nhận cho M2 (04, KM-012) |
 | F-PWA-05 | Giao diện sáng/tối theo hệ thống | P1 | ✅ |
 | F-PWA-06 | Share target: chia sẻ link từ app khác vào để tạo nhanh item `doc` (chỉ Android) | P3 | ⏳ |
 

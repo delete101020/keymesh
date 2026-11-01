@@ -1,0 +1,56 @@
+# Pipeline for KM-012, owned by this epic.
+# Kept out of .aidlc/workspace.yaml on purpose: that file is shared team
+# config, and one append point per epic is one merge conflict per epic.
+# Referenced by state.json ("pipeline"). Commit it with the epic.
+id: KM-012
+derived_from: ai-native-full
+recipe: native-quick
+steps:
+  - agent: aidlc-native-originator
+    name: intent
+    enabled: true
+    produces:
+      - docs/epics/{epic}/artifacts/intent.md
+    requires: []
+    depends_on: []
+    auto_review: false
+    human_review: true
+    skills:
+      - aidlc-native-intent
+  - agent: aidlc-native-engineer
+    name: build-plan
+    enabled: true
+    produces:
+      - docs/epics/{epic}/artifacts/plan.md
+    requires: []
+    depends_on:
+      - intent
+    auto_review: false
+    human_review: true
+    skills:
+      - aidlc-native-build-plan
+  - agent: aidlc-native-engineer
+    name: implement
+    enabled: true
+    produces:
+      - docs/epics/{epic}/artifacts/implement.md
+    requires: []
+    depends_on:
+      - build-plan
+    auto_review: false
+    human_review: true
+    skills:
+      - aidlc-native-implement
+  - agent: aidlc-native-verifier
+    name: verify
+    enabled: true
+    produces:
+      - docs/epics/{epic}/artifacts/verify.md
+    requires: []
+    depends_on:
+      - implement
+    auto_review: false
+    human_review: true
+    skills:
+      - aidlc-native-verify
+on_failure: stop
