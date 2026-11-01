@@ -1,0 +1,68 @@
+{
+  "id": "KM-013",
+  "title": "Kiểm tay trên máy tính thật (nợ KM-003 và KM-004)",
+  "description": "Chỉ ghi lại việc, chưa code: năm mục kiểm tay của KM-003 (AC06 tắt Wi-Fi, AC10 ngủ máy 11 phút, AC32 camera thật, AC33 từ chối camera, AC36 clipboard mất focus) và copy bằng cử chỉ thật trên Safari và Firefox desktop. Tách khỏi KM-004 theo quyết định của originator (2026-11-01) để KM-004 đóng được.",
+  "pipeline": "KM-013",
+  "agent": null,
+  "agents": [
+    "aidlc-native-originator",
+    "aidlc-native-engineer",
+    "aidlc-native-engineer",
+    "aidlc-native-verifier"
+  ],
+  "currentStep": 0,
+  "status": "in_progress",
+  "strict_mode": true,
+  "tags": [
+    "TEST",
+    "DESKTOP"
+  ],
+  "createdAt": "2026-11-01T17:00:00.000Z",
+  "stepStates": [
+    {
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "status": "in_progress",
+      "revision": 1,
+      "runStatus": "awaiting_work",
+      "startedAt": "2026-11-01T17:00:00.000Z",
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "build-plan",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "implement",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-verifier",
+      "name": "verify",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    }
+  ],
+  "updatedAt": "2026-11-01T17:00:00.000Z"
+}

@@ -59,8 +59,8 @@ Epic kế thừa từ KM-003 và không đổi cách giữ hay mở dữ liệu 
 
 Originator kiểm được bằng tay với dữ liệu thử, trên **máy giả lập iOS và Android** (originator quyết định 2026-11-01: chưa có máy thật, giả lập là đủ để đạt M2). Máy này chưa có Xcode và Firefox; originator đồng ý cài Xcode để có giả lập iOS (2026-11-01), và phần Firefox dưới đây cũng cần cài trình duyệt này.
 
-- **Safari và Firefox desktop (nợ KM-003, `AC49`):** đi hết luồng lập tài khoản → mở khoá → tạo item → copy, có kết quả ghi lại; biết vì sao bộ test từng treo ở Safari. Trên Firefox, secret nhiều dòng vẫn được che khi sửa (review finding 2).
-- **Năm mục kiểm tay còn lại của KM-003 (`verify.md` §3), trên máy tính thật:** tắt Wi-Fi (`AC06`), ngủ máy 11 phút (`AC10`), camera thật (`AC32`), từ chối camera (`AC33`), clipboard bị từ chối vì mất focus (`AC36`). Mỗi mục có kết quả ghi lại.
+- **Safari và Firefox desktop (nợ KM-003, `AC49`) — phần cử chỉ thật chuyển sang KM-013 (2026-11-01); ở đây giữ phần chạy bằng lệnh:** đi hết luồng lập tài khoản → mở khoá → tạo item → copy, có kết quả ghi lại; biết vì sao bộ test từng treo ở Safari. Trên Firefox, secret nhiều dòng vẫn được che khi sửa (review finding 2).
+- **Năm mục kiểm tay còn lại của KM-003 (`verify.md` §3), trên máy tính thật — chuyển sang KM-013 (2026-11-01), không còn là tiêu chí của epic này:** tắt Wi-Fi (`AC06`), ngủ máy 11 phút (`AC10`), camera thật (`AC32`), từ chối camera (`AC33`), clipboard bị từ chối vì mất focus (`AC36`). Mỗi mục có kết quả ghi lại.
 - **Cài và offline:** trên cả hai máy giả lập, thêm được app ra màn hình chính, mở lên không có thanh trình duyệt. Tắt mạng rồi mở lại vẫn vào được và mở khoá được.
 - **Bản mới:** khi có phiên bản app mới, người dùng được báo và tự chọn lúc tải lại.
 - **Khoá khi chuyển nền:** chuyển sang app khác quá thời gian đã đặt (mặc định 60 giây) thì quay lại phải nhập mật khẩu. Màn đa nhiệm không để lộ secret. **Đổi 2026-11-01 (originator quyết định, sau khi đo):** tiêu chí này chỉ còn là khoá khi chuyển nền; việc màn đa nhiệm lộ nội dung được chấp nhận cho M2, xem mục 6.
@@ -72,6 +72,7 @@ Originator kiểm được bằng tay với dữ liệu thử, trên **máy gi�
 
 > *Adjacent problems we are deliberately not solving here.*
 
+- **Kiểm tay trên máy tính thật** (chốt 2026-11-01): năm mục KM-003 và copy bằng cử chỉ thật trên Safari, Firefox desktop chuyển sang `docs/epics/KM-013/KM-013.md`.
 - **Kiểm trên điện thoại thật.** Giả lập không nói gì về tốc độ mở khoá thật, camera, hay cách máy thật xoá dữ liệu. M2 đạt không chứng minh G3 trên máy thật; originator chấp nhận điều này, với điều kiện: **chưa kiểm trên điện thoại thật thì chưa cất secret thật trên điện thoại** (chốt 2026-11-01).
 - **Che nội dung ở màn đa nhiệm** (chốt 2026-11-01): đã đo trên giả lập Android và iOS, ảnh ở màn đa nhiệm giữ cả secret đang hiện, và web không có cách chặn đã biết. Chấp nhận cho M2 vì chỉ dùng dữ liệu thử. Việc tự che lại secret chuyển sang KM-012. Xem lại trước khi cất secret thật trên điện thoại.
 - **Quét QR trên iPhone** (KM-003 Concern 6, chốt 2026-11-01): nhập tay là đủ. Không đổi quy ước không dùng thư viện bên thứ ba.

@@ -155,3 +155,5 @@ Ghi trong lúc implement.
 7. **`testkit/browser/run.mjs`, `index.html` báo trang bị ẩn khi hết giờ.** Đo được: màn hình khoá thì trang Safari `hidden`, timer gần như dừng, bộ test trông như treo.
 8. **Originator chấp nhận việc màn đa nhiệm lộ nội dung cho M2 (2026-11-01).** Tiêu chí ở intent §5 và §6 đã đổi; `KM-004-AC06` ở §5 chỉ còn phần khoá nền, phần ảnh màn đa nhiệm giữ làm giới hạn đã đo. Tự che lại secret chuyển sang KM-012.
 9. **Originator đồng ý chặn đề nghị lưu mật khẩu ở ô OTP, nhưng chưa tìm được cách làm được; không đổi code. Originator chấp nhận để nguyên (2026-11-01).** Master password giữ nguyên theo cùng quyết định. Kết quả đo ở `implement.md` §6.
+
+10. **Tách việc kiểm tay sang KM-013 (originator quyết định 2026-11-01).** `KM-004-AC03` bỏ khỏi epic; `AC01`, `AC02` chỉ còn phần chạy bằng lệnh (`test:browser`, luồng qua iframe) — copy bằng cử chỉ thật chuyển KM-013. `AC09` đổi thành: tài liệu ghi M2 đạt trên giả lập kèm điều kiện và trỏ tới KM-013.
