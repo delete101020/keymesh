@@ -3,6 +3,7 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { filterCounts, liveEnvs, liveProjects } from '../vault-query.js';
 import { openAddProject, openManageProject, envColorClass } from './project-dialogs.js';
+import { renderHome } from './home.js';
 
 function filterButton(app, filter, label, count, { iconName, cls = '', fk, dot } = {}) {
   const { filter: cur, query } = app.state;
@@ -33,6 +34,7 @@ export function renderNav(app) {
   }
   return [
     h('div', { class: 'muted hint', 'aria-label': 'Vault đang mở' }, app.vaultName),
+    renderHome(app),
     filterButton(app, { k: 'all' }, 'Tất cả', counts.all, { iconName: 'inbox', fk: 'nav-all' }),
     filterButton(app, { k: 'unassigned' }, 'Chưa gán', counts.unassigned, { iconName: 'link' }),
     filterButton(app, { k: 'expiring' }, 'Sắp hết hạn', counts.expiring, { iconName: 'clock' }),

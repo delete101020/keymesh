@@ -225,11 +225,11 @@ for (const width of [899, 360]) {
 
 test('KM-003 AC44 FR47 no screen offers an out-of-scope feature', async () => {
   await page.viewport(1280);
-  const banned = /yêu thích|thùng rác|đăng nhập|đăng xuất|đồng bộ|backup|sao lưu|import|export|passkey|vân tay|đổi mật khẩu|chọn vault|thời gian khoá|^tag$|^xoá item$|cài đặt/i;
+  const banned = /thùng rác|đăng nhập|đăng xuất|đồng bộ|backup|sao lưu|import|export|passkey|vân tay|đổi mật khẩu|chọn vault|^tag$|^xoá item$/i; // KM-004 brought favourites and settings into scope.
   const names = async (where) => {
     const list = await page.eval(`window.__names()`);
     for (const n of list) assert.doesNotMatch(n, banned, `${where}: ${n}`);
-    assert.doesNotMatch(await page.text(), /thùng rác|yêu thích|đồng bộ|đăng nhập/i, where);
+    assert.doesNotMatch(await page.text(), /thùng rác|đồng bộ|đăng nhập/i, where);
   };
   await names('main');
   await page.click('Tất cả', { exact: false });
@@ -320,13 +320,20 @@ test('KM-003 AC46 NFR02 NFR03 markers in every input: after locking, nothing rea
   assert.ok(!(await page.domDump()).includes(MARK), 'DOM');
   const stored = await page.eval(`(async () => {
     const db = ${READ_DB};
-    const caches_ = await caches.keys();
-    return { db: await db, local: JSON.stringify(localStorage), session: JSON.stringify(sessionStorage), caches: caches_ };
+    const names = await caches.keys();
+    const cached = [];
+    for (const n of names) {
+      for (const req of await (await caches.open(n)).keys()) cached.push(req.url + ' ' + (await (await (await caches.open(n)).match(req)).text()));
+    }
+    return { db: await db, local: JSON.stringify(localStorage), session: JSON.stringify(sessionStorage), names, cached };
   })()`);
   const flat = JSON.stringify(stored);
-  assert.ok(!flat.includes(MARK), 'IndexedDB, localStorage, sessionStorage');
+  assert.ok(!flat.includes(MARK), 'IndexedDB, localStorage, sessionStorage, content of every cache');
   assert.ok(!flat.includes(PASSWORD));
-  assert.deepEqual(stored.caches, []);
+  // KM-004: the Service Worker keeps exactly one cache, of the app's own files.
+  assert.equal(stored.names.length, 1);
+  assert.match(stored.names[0], /^keymesh-shell-[0-9a-f]{16}$/);
+  assert.ok(stored.cached.length > 0);
   assert.deepEqual(Object.keys(stored.db.account).sort(), ['deviceId', 'kdf', 'userId', 'username', 'wrappedAccountKey']);
   for (const line of [...page.console, ...page.errors, ...page.requests]) {
     assert.ok(!line.includes(MARK), `output: ${line.slice(0, 80)}`);

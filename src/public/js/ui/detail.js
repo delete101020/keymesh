@@ -7,6 +7,7 @@ import { openHistory } from './history-dialog.js';
 import { daysLeft, itemLiveEnvs, liveProjects, orderedFields, sharedChip } from '../vault-query.js';
 import { parseOtp, secondsLeft, totp } from '../otp.js';
 import { fieldFileBytes, formatSize } from '../field-file.js';
+import { narrowQuery } from './nav-history.js';
 
 const SECRET_KINDS = new Set(['secret', 'secret-multi']);
 const MULTI_KINDS = new Set(['multi', 'secret-multi']);
@@ -125,13 +126,25 @@ export function renderDetail(app) {
   const envs = itemLiveEnvs(v, item);
   const shared = sharedChip(v, item, app.state.filter);
   const origin = item.forkedFrom ? v.items.find((i) => i.id === item.forkedFrom && i.deletedAt === null && i.purgedAt === null) : null;
+  const narrow = narrowQuery().matches;
+  // On a narrow screen these go below the fields, so the first thing under the title is what can be copied.
+  const more = [
+    h('button', { fk: 'dup-item', on: { click: () => app.startDuplicate() } }, icon('dup'), 'Nhân bản'),
+    h('button', { fk: 'hist-item', on: { click: () => openHistory(app, item.id) } }, icon('history'), 'Lịch sử'),
+    app.canFork(item) ? h('button', { fk: 'fork-item', on: { click: () => openFork(app, item) } }, icon('fork'), 'Fork') : null,
+  ];
   return [
     h('div', { class: 'dh' },
       h('h2', { tabindex: -1, fk: 'detail-title' }, item.title),
+      narrow ? h('button', {
+        class: `icon${item.favorite ? ' star-on' : ''}`,
+        'aria-label': item.favorite ? 'Bỏ yêu thích' : 'Yêu thích',
+        'aria-pressed': item.favorite ? 'true' : 'false',
+        fk: 'favorite',
+        on: { click: () => app.toggleFavorite(item.id) },
+      }, icon('star')) : null,
       h('button', { fk: 'edit-item', on: { click: () => app.startEdit() } }, icon('edit'), 'Sửa'),
-      h('button', { fk: 'dup-item', on: { click: () => app.startDuplicate() } }, icon('dup'), 'Nhân bản'),
-      h('button', { fk: 'hist-item', on: { click: () => openHistory(app, item.id) } }, icon('history'), 'Lịch sử'),
-      app.canFork(item) ? h('button', { fk: 'fork-item', on: { click: () => openFork(app, item) } }, icon('fork'), 'Fork') : null),
+      narrow ? null : more),
     h('div', { class: 'meta' },
       h('span', { class: 'badge' }, TYPE_LABELS[item.type]),
       envs.map((e) => h('span', { class: `chip ${envColorClass(e.color)}` }, h('span', { class: 'env-dot' }), `${projects.find((p) => p.id === e.projectId).name} / ${e.name}`)),
@@ -143,6 +156,7 @@ export function renderDetail(app) {
       ? h('div', { class: 'section' }, h('h3', null, 'Field'), h('div', { class: 'fields' }, orderedFields(item).map((f) => fieldRow(app, item, f))))
       : null,
     item.notes ? h('div', { class: 'section' }, h('h3', null, 'Ghi chú'), h('div', { class: 'notes' }, item.notes)) : null,
+    narrow ? h('div', { class: 'actions' }, more) : null,
     h('div', { class: 'foot-meta' }, `Sửa lần cuối: ${new Date(item.updatedAt).toLocaleString('vi-VN')}`),
   ];
 }

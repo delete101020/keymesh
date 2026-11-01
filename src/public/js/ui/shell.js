@@ -8,9 +8,13 @@ import { renderNav } from './nav.js';
 import { renderList } from './list.js';
 import { renderDetail, stopOtpTicks } from './detail.js';
 import { renderEdit } from './edit.js';
+import { openSettings } from './settings-dialog.js';
+import { bindNavHistory, narrowQuery } from './nav-history.js';
+import { registerPwa } from '../pwa.js';
 
 const root = document.getElementById('root');
 const toastEl = document.getElementById('toast');
+const updateEl = document.getElementById('update');
 
 const app = createApp({
   confirmDiscard: () => confirmDialog(app, { title: 'Bỏ bản nháp?', message: 'Những gì vừa sửa chưa được lưu sẽ mất.', confirmLabel: 'Bỏ bản nháp' }),
@@ -32,6 +36,7 @@ function buildMain() {
     h('div', { class: 'brand' }, h('span', { class: 'mark' }, icon('key')), h('span', null, 'KeyMesh')),
     h('div', { class: 'search' }, search, icon('search'), h('kbd', { 'aria-hidden': 'true' }, navigator.platform.startsWith('Mac') ? '⌘K' : 'Ctrl K')),
     h('span', { class: 'spacer' }),
+    h('button', { 'aria-label': 'Cài đặt', fk: 'settings', on: { click: () => openSettings(app) } }, icon('gear')),
     h('button', { 'aria-label': 'Khoá', fk: 'lock', on: { click: () => app.lock() } }, icon('lock')));
   const side = h('nav', { class: 'side', 'aria-label': 'Điều hướng' });
   const list = h('section', { class: 'list', 'aria-label': 'Danh sách item' });
@@ -92,8 +97,22 @@ function showToast(toast) {
   }
 }
 
+const pwa = registerPwa({ onUpdateReady: () => app.updateReady() });
+
+function showUpdate() {
+  updateEl.hidden = !app.state.updateReady;
+  updateEl.replaceChildren(
+    h('span', { class: 'grow' }, 'Có phiên bản mới của KeyMesh.'),
+    h('button', { class: 'primary', on: { click: async () => {
+      if (await app.leaveForUpdate()) pwa.apply();
+    } } }, 'Tải lại'));
+}
+
 app.on((regions, payload) => {
   if (regions.includes('toast') && payload !== undefined) return showToast(payload);
+  if (regions.includes('update')) return showUpdate();
+  // An attribute, so CSS can hide everything including dialogs, which sit above any z-index.
+  if (regions.includes('shield')) return document.body.toggleAttribute('data-shield', app.state.shielded);
   if (regions.includes('screen')) return renderScreen();
   return drawRegions(regions);
 });
@@ -105,5 +124,12 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// The detail view lays out its buttons by width. A form keeps what is being typed, so it is left alone.
+narrowQuery().addEventListener('change', () => {
+  if (app.state.mode === 'view') drawRegions(['detail']);
+});
+
+bindNavHistory(app);
 app.bindActivity();
 app.boot();
+pwa.start();

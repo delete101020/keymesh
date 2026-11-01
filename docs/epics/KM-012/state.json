@@ -1,0 +1,68 @@
+{
+  "id": "KM-012",
+  "title": "Tự che lại secret đang hiện trên mobile",
+  "description": "Chỉ ghi lại vấn đề, chưa code: secret đang được bấm hiện nằm lại trong ảnh ở màn đa nhiệm của Android và iOS (đo ở KM-004). Web không chặn được ảnh này. Hướng đã nêu là tự che lại secret sau vài giây, chỉ giảm rủi ro chứ không hết, vì tiêu đề và username vẫn hiện. Phải xem lại trước khi cất secret thật trên điện thoại.",
+  "pipeline": "KM-012",
+  "agent": null,
+  "agents": [
+    "aidlc-native-originator",
+    "aidlc-native-engineer",
+    "aidlc-native-engineer",
+    "aidlc-native-verifier"
+  ],
+  "currentStep": 0,
+  "status": "in_progress",
+  "strict_mode": true,
+  "tags": [
+    "MOBILE",
+    "SECURITY"
+  ],
+  "createdAt": "2026-11-01T16:30:00.000Z",
+  "stepStates": [
+    {
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "status": "in_progress",
+      "revision": 1,
+      "runStatus": "awaiting_work",
+      "startedAt": "2026-11-01T16:30:00.000Z",
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "build-plan",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "implement",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-verifier",
+      "name": "verify",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    }
+  ],
+  "updatedAt": "2026-11-01T16:30:00.000Z"
+}

@@ -39,6 +39,12 @@ test('KM-003 NFR01 index.html has no inline script, style, handlers or external 
   assert.match(scripts[0], /type="module" src="js\/ui\/shell\.js"/);
 });
 
+test('KM-004 the page opts out of browser translation, which would send what is on screen to a third party', { skip }, async () => {
+  const html = await readRepoFile('src/public/index.html');
+  assert.match(html, /<html[^>]*translate="no"/);
+  assert.match(html, /<meta name="google" content="notranslate">/);
+});
+
 test('KM-003 NFR04 NFR06 only relative imports with .js, nothing loaded from another origin', { skip }, async () => {
   const urlAllowed = /www\.w3\.org\/2000\/svg|otpauth:|https?:\/\/127/;
   for (const { name, text } of await sources((n) => n.endsWith('.js') && !n.endsWith('wordlist.js'))) {
@@ -65,7 +71,7 @@ test('KM-003 AC45 NFR01 the local server sends exactly the CSP of docs/04', { sk
 });
 
 test('KM-003 AC44 FR47 no out-of-scope feature appears in UI strings', { skip }, async () => {
-  const banned = /yêu thích|thùng rác|đăng nhập|đăng xuất|đồng bộ|backup|sao lưu|import\b|export\b|passkey|vân tay|đổi mật khẩu|chọn vault|thời gian khoá|\btag\b|\bthẻ\b/i;
+  const banned = /thùng rác|đăng nhập|đăng xuất|đồng bộ|backup|sao lưu|import\b|export\b|passkey|vân tay|đổi mật khẩu|chọn vault|\btag\b|\bthẻ\b/i;
   for (const { name, text } of await sources((n) => n.startsWith('js/ui/') || n === 'index.html')) {
     // Only string literals count; code comments and JS keywords like `import` do not.
     for (const m of text.matchAll(/'([^'\n]*)'|`([^`\n]*)`|>([^<\n]+)</g)) {

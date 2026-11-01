@@ -1,5 +1,6 @@
 // Serves the repo root on 127.0.0.1, opens testkit/browser/index.html in headless Chrome/Edge,
 // waits for the page to POST its results, prints them and exits 0 (all pass) or 1.
+//   BROWSER_APP=Safari|Firefox npm run test:browser   opens that macOS app instead (not headless).
 import { createServer } from 'node:http';
 import { readFile, readdir, mkdtemp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -32,6 +33,7 @@ async function listTests() {
   return names.map((n) => `/test/${n}`);
 }
 
+let pageWasHidden = false;
 let finish;
 const done = new Promise((r) => (finish = r));
 
@@ -41,6 +43,10 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/__tests') {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify(await listTests()));
+    }
+    if (req.method === 'POST' && url.pathname === '/hidden') {
+      pageWasHidden = true;
+      return res.writeHead(204).end();
     }
     if (req.method === 'POST' && url.pathname === '/result') {
       let body = '';
@@ -61,10 +67,15 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const pageUrl = `http://127.0.0.1:${server.address().port}/testkit/browser/index.html`;
 
-const browserPath = findBrowser();
+const browserApp = process.env.BROWSER_APP;
+const browserPath = browserApp ? null : findBrowser();
 let browser;
 let profile;
-if (browserPath) {
+if (browserApp) {
+  // `open` returns at once and the app keeps running afterwards; the user's own windows stay untouched.
+  spawn('open', ['-a', browserApp, pageUrl], { stdio: 'ignore' }).once('error', (e) => console.log(`open failed: ${e.message}`));
+  console.log(`Opened ${pageUrl} in ${browserApp}`);
+} else if (browserPath) {
   profile = await mkdtemp(join(tmpdir(), 'keymesh-test-'));
   browser = spawn(
     browserPath,
@@ -85,6 +96,7 @@ if (profile) await rm(profile, { recursive: true, force: true, maxRetries: 5, re
 
 if (!report) {
   console.log(`Timed out after ${TIMEOUT_MS / 1000} s waiting for ${pageUrl}`);
+  if (pageWasHidden) console.log('The page was hidden during the run, so its timers were held back. Unlock the screen, keep the window visible and run again.');
   process.exit(1);
 }
 

@@ -186,6 +186,22 @@ export class Page {
     await new Promise((r) => setTimeout(r, 50));
   }
 
+  // A phone as far as the app can tell: (hover: none) and (pointer: coarse). Takes effect for code that
+  // runs after this, so reload if the app is already up.
+  async phone(width = 360, height = 640) {
+    await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile: true });
+    await this.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await new Promise((r) => setTimeout(r, 50));
+  }
+
+  // What going to the background and back looks like to the page; CDP has no real one for a headless tab.
+  async setBackground(hidden) {
+    await this.eval(`(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => ${hidden ? "'hidden'" : "'visible'"} });
+      document.dispatchEvent(new Event('visibilitychange'));
+    })()`);
+  }
+
   async colorScheme(value) {
     await this.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }] });
     await new Promise((r) => setTimeout(r, 50));
@@ -205,8 +221,8 @@ export class Page {
 
 const KEY_CODES = { Tab: 9, Enter: 13, Escape: 27, ' ': 32, ArrowUp: 38, ArrowDown: 40, k: 75 };
 
-export async function startApp({ args = [] } = {}) {
-  const server = await startServer();
+export async function startApp({ args = [], root } = {}) {
+  const server = await startServer({ root });
   const profile = await newProfile();
   const app = { server, profile, url: server.url, pages: new Map(), cspSeen: [], args };
 
@@ -251,9 +267,14 @@ export async function startApp({ args = [] } = {}) {
     for (const p of app.pages.values()) live.push(...(await p.cspViolations().catch(() => [])));
     return [...app.cspSeen, ...live];
   };
+  // The network going away and coming back; the origin stays the same.
+  app.serverDown = () => app.server.close();
+  app.serverUp = async () => {
+    app.server = await startServer({ root, port: Number(new URL(app.url).port) });
+  };
   app.stop = async () => {
     await app.chrome.stop().catch(() => {});
-    await server.close();
+    await app.server.close();
     await removeProfile(profile);
   };
   return app;
@@ -262,6 +283,9 @@ export async function startApp({ args = [] } = {}) {
 // --- flows shared by the E2E files -------------------------------------------------------------
 
 export const PASSWORD = 'correct horse battery staple';
+
+// Resolves once the Service Worker has finished installing and controls this page.
+export const swControls = (page) => page.waitFor(`navigator.serviceWorker.controller?.state === 'activated'`, { what: 'Service Worker in control', timeout: 15000 });
 
 export async function setup(page, password = PASSWORD) {
   await page.fill('Master password', password);

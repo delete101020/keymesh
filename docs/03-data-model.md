@@ -289,11 +289,12 @@ Cùng định dạng này được dùng cho nút *Tải backup* và cho **bản
 | `meta` | `account` | `{ userId, username, kdf, wrappedAccountKey, deviceId }` |
 | `meta` | `session` | `{ token, expiresAt }`. Token là bearer token để gọi API; nằm ở IndexedDB nên chỉ đọc được từ cùng origin |
 | `meta` | `passkey` | `{ credentialId, prfSalt, wrappedAccountKey }` (bọc bằng prfKey) |
-| `meta` | `settings` | cài đặt riêng của thiết bị |
+| `meta` | `settings` | cài đặt riêng của thiết bị, không đồng bộ: `{ idleMs, backgroundMs, recents }`. `recents` là tối đa 5 `itemId` mở hoặc copy gần nhất. Giá trị đọc từ đĩa được kiểm, hỏng thì về mặc định (`js/settings.js`) |
 | `meta` | `mirror` | `{ handle: FileSystemFileHandle, lastWrittenAt, lastError }`: file bản sao tự động (chỉ Chromium) |
 | `vaults` | `<vaultId>` | `{ id, wrappedVaultKey, meta, metaVersion, current: { envelope, version, dirty, savedAt }, base: { envelope, version }, deletedAt }` |
 
 - `current` là trạng thái cục bộ mới nhất, có thể chưa push. `base` là bản server ở lần đồng bộ thành công gần nhất. Mỗi vault có cặp `current`/`base` riêng.
+- `recents` nằm ngoài vault nên đọc được khi chưa mở khoá: lộ số lượng và thứ tự id gần đây, không lộ item là gì (id ngẫu nhiên, không có tiêu đề hay giá trị).
 - Không lưu plaintext, `accountKey` hay `vaultKey` dạng chưa bọc xuống đĩa trong bất kỳ trường hợp nào.
 - **Giá trị trước KM-006** (app chưa có server, KM-003): `meta.account` có `userId = null`, `username = null`; `metaVersion = 0`; `current.version = 0`; `current.dirty = true`; `base = null`; `deletedAt = null`. `authKey` không được lưu mà dẫn xuất lại từ password + `kdf` khi cần. KM-006 đăng ký chính bộ khoá này: `POST /api/register` lấy `kdf`, `wrappedAccountKey` từ `meta.account`, còn `vault` là `{ id, wrappedVaultKey, meta, blob: current.envelope }` của dòng trong `vaults`. Hàm `toRecord` ở `js/store.js` đổi một dòng thành `record` ở 09.
 

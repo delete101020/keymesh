@@ -49,6 +49,25 @@ function row(app, item, now) {
   h('span', { class: 'sub' }, envs.length ? envs.map((e) => e.name).join(', ') : 'Chưa gán'));
 }
 
+// Narrow screens only (CSS): the envs of the project in view, to move between uat and staging in one tap.
+function envTabs(app) {
+  const { filter, query } = app.state;
+  if (query || (filter.k !== 'project' && filter.k !== 'env')) return null;
+  const v = app.vault;
+  const projectId = filter.k === 'project' ? filter.id : liveEnvs(v).find((e) => e.id === filter.id)?.projectId;
+  const envs = projectId ? liveEnvs(v, projectId) : [];
+  if (envs.length === 0) return null;
+  const tab = (label, to, on) => h('button', {
+    class: `env-tab${on ? ' on' : ''}`,
+    'aria-current': on ? 'true' : null,
+    fk: `tab-${to.id}`,
+    on: { click: () => app.setFilter(to) },
+  }, label);
+  return h('div', { class: 'env-tabs', role: 'group', 'aria-label': 'Env của project' },
+    tab('Tất cả env', { k: 'project', id: projectId }, filter.k === 'project'),
+    envs.map((e) => tab(e.name, { k: 'env', id: e.id }, filter.id === e.id)));
+}
+
 export function renderList(app) {
   const now = Date.now();
   const items = app.items();
@@ -56,6 +75,7 @@ export function renderList(app) {
     h('div', { class: 'list-head' },
       h('h2', { tabindex: -1, fk: 'list-head' }, heading(app)),
       h('button', { class: 'primary', fk: 'add-item', on: { click: () => app.startNew() } }, icon('plus'), 'Thêm item')),
+    envTabs(app),
     items.length ? items.map((i) => row(app, i, now)) : h('p', { class: 'empty' }, emptyMessage(app)),
   ];
 }

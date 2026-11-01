@@ -87,7 +87,7 @@ function valueEditor(app, f, label, refs) {
     el.setAttribute('aria-label', `Giá trị ${label()}`);
     return el;
   };
-  const input = (type, cls) => named(h('input', { type, value: f.v, autocomplete: 'off', spellcheck: 'false', class: cls, fk: `value-${f.key}`, on: { input: set } }));
+  const input = (type, cls) => named(h('input', { type, value: f.v, autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', class: cls, fk: `value-${f.key}`, on: { input: set } }));
 
   if (f.kind === 'text' || f.kind === 'url') return [input('text')];
   if (f.kind === 'secret') {
@@ -135,7 +135,7 @@ function valueEditor(app, f, label, refs) {
   }
   const masked = f.kind === 'secret-multi' && !ui.show;
   return [
-    named(h('textarea', { value: f.v, class: `mono${masked ? ' masked' : ''}`, spellcheck: 'false', autocomplete: 'off', fk: `value-${f.key}`, on: { input: set } })),
+    named(h('textarea', { value: f.v, class: `mono${masked ? ' masked' : ''}`, spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', fk: `value-${f.key}`, on: { input: set } })),
     f.kind === 'secret-multi' ? eye() : null,
     choose,
     chooser,

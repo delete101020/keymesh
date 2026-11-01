@@ -8,11 +8,40 @@ export function createClipboardGuard({
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   clearAfterMs = CLEAR_AFTER_MS,
+  ClipboardItemClass = globalThis.ClipboardItem,
+  onRetryChange = () => {},
 } = {}) {
   let held = null; // the value last copied, kept only while a clear is due
   let timer = null;
-  let retryOnFocus = false;
+  let retryPending = false; // a clear was refused: WebKit refuses any write outside a user gesture
   let copies = 0;
+
+  function setRetry(pending) {
+    if (pending === retryPending) return;
+    retryPending = pending;
+    onRetryChange(pending);
+  }
+
+  // WebKit drops the user gesture at the first await, so a value that takes time to compute has to
+  // go through a ClipboardItem, which is created inside the gesture and takes a promise.
+  async function write(value) {
+    if (typeof value === 'string') {
+      await clipboard.writeText(value);
+      return value;
+    }
+    if (ClipboardItemClass && clipboard.write) {
+      try {
+        const blob = value.then((v) => new Blob([v], { type: 'text/plain' }));
+        await clipboard.write([new ClipboardItemClass({ 'text/plain': blob })]);
+        return await value;
+      } catch {
+        // Older ClipboardItem without promises; writeText below is refused too if the cause was the gesture.
+      }
+    }
+    const plain = await value;
+    await clipboard.writeText(plain);
+    return plain;
+  }
 
   async function canRead() {
     try {
@@ -38,7 +67,7 @@ export function createClipboardGuard({
     if (await replacedByUser(value)) {
       if (startedAt === copies) {
         held = null;
-        retryOnFocus = false;
+        retryPending = false; // nothing was cleared, so there is nothing to tell
       }
       return;
     }
@@ -47,11 +76,11 @@ export function createClipboardGuard({
       await clipboard.writeText('');
       if (startedAt === copies) {
         held = null;
-        retryOnFocus = false;
+        setRetry(false);
       }
     } catch {
-      // Refused because the tab has no focus; focused() tries again.
-      if (startedAt === copies) retryOnFocus = true;
+      // Refused: no focus, or no user gesture (WebKit). retry() tries again.
+      if (startedAt === copies) setRetry(true);
     }
   }
 
@@ -62,16 +91,22 @@ export function createClipboardGuard({
 
   return {
     // True when the value reached the clipboard. A new copy replaces the count of the previous one.
+    // `value` is a string, or a promise of one that was started inside the user gesture.
     async copy(value) {
+      // Everything a pending clear looks at changes before the first await: this copy may be the very
+      // tap that triggers retry(), and that clear must not land after this write.
+      const mine = ++copies;
+      cancelTimer();
+      retryPending = false;
+      let plain;
       try {
-        await clipboard.writeText(value);
+        plain = await write(value);
       } catch {
+        if (mine === copies && held !== null) setRetry(true);
         return false;
       }
-      copies++;
-      cancelTimer();
-      held = value;
-      retryOnFocus = false;
+      if (mine !== copies) return true;
+      held = plain;
       timer = setTimer(() => {
         timer = null;
         clear();
@@ -79,8 +114,9 @@ export function createClipboardGuard({
       return true;
     },
 
-    focused() {
-      return retryOnFocus ? clear() : Promise.resolve();
+    // Call on focus and on every user gesture.
+    retry() {
+      return retryPending ? clear() : Promise.resolve();
     },
 
     // On lock: try now, and drop the value whatever the result. A retry after that has no value to

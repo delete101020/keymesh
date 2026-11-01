@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 3,
+  "runId": "KM-012",
+  "pipelineId": "KM-012",
+  "context": {
+    "epic": "KM-012"
+  },
+  "startedAt": "2026-11-01T16:30:00.000Z",
+  "updatedAt": "2026-11-01T16:30:00.000Z",
+  "currentStepIdx": 0,
+  "status": "running",
+  "steps": [
+    {
+      "stepIdx": 0,
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "revision": 1,
+      "status": "awaiting_work",
+      "startedAt": "2026-11-01T16:30:00.000Z",
+      "artifactsProduced": []
+    },
+    {
+      "stepIdx": 1,
+      "agent": "aidlc-native-engineer",
+      "name": "build-plan",
+      "revision": 1,
+      "status": "pending",
+      "artifactsProduced": []
+    },
+    {
+      "stepIdx": 2,
+      "agent": "aidlc-native-engineer",
+      "name": "implement",
+      "revision": 1,
+      "status": "pending",
+      "artifactsProduced": []
+    },
+    {
+      "stepIdx": 3,
+      "agent": "aidlc-native-verifier",
+      "name": "verify",
+      "revision": 1,
+      "status": "pending",
+      "artifactsProduced": []
+    }
+  ]
+}
