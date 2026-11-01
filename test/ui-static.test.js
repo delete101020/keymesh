@@ -39,6 +39,12 @@ test('KM-003 NFR01 index.html has no inline script, style, handlers or external 
   assert.match(scripts[0], /type="module" src="js\/ui\/shell\.js"/);
 });
 
+test('KM-004 the page opts out of browser translation, which would send what is on screen to a third party', { skip }, async () => {
+  const html = await readRepoFile('src/public/index.html');
+  assert.match(html, /<html[^>]*translate="no"/);
+  assert.match(html, /<meta name="google" content="notranslate">/);
+});
+
 test('KM-003 NFR04 NFR06 only relative imports with .js, nothing loaded from another origin', { skip }, async () => {
   const urlAllowed = /www\.w3\.org\/2000\/svg|otpauth:|https?:\/\/127/;
   for (const { name, text } of await sources((n) => n.endsWith('.js') && !n.endsWith('wordlist.js'))) {
