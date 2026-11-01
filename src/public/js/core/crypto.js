@@ -166,7 +166,8 @@ export async function deriveFromPassword(password, kdf) {
   assertSupported();
   if (typeof password !== 'string') throw new KeymeshError('invalid', 'password');
   const { iter, salt } = readKdf(kdf);
-  const pw = utf8Encode(password);
+  // The same password typed on two keyboards can arrive as NFC or NFD; both must open the account.
+  const pw = utf8Encode(password.normalize('NFC'));
   const master = await pbkdf2(pw, salt, iter);
   zeroize(pw);
   const base = await subtle().importKey('raw', master, 'HKDF', false, ['deriveBits', 'deriveKey']);

@@ -340,10 +340,9 @@ export function updateItem(vault, itemId, draft, ctx) {
   }
 }
 
-function saveItem(item, d, ctx) {
+function saveItem(item, d, ctx, { reason = 'edit', before = snapshot(item), changed = [] } = {}) {
   const c = stamp(ctx);
-  const before = snapshot(item);
-  const changedAttrs = new Set();
+  const changedAttrs = new Set(changed);
 
   if ('fields' in d) {
     const { changed, order } = applyFields(item, d.fields, ctx);
@@ -364,11 +363,54 @@ function saveItem(item, d, ctx) {
 
   if (changedAttrs.size === 0) return item;
   if (HISTORY_ATTRS.some((k) => changedAttrs.has(k))) {
-    item.history.unshift({ at: c.at, rev: item.rev, dev: c.dev, reason: 'edit', ...before });
+    item.history.unshift({ at: c.at, rev: item.rev, dev: c.dev, reason, ...before });
     item.history.length = Math.min(item.history.length, HISTORY_MAX);
   }
   touch(item, ctx);
   return item;
+}
+
+// Put title, fields, notes and expires back to a history entry, as one save with reason 'restore'.
+// Scopes stay as they are (restoring them would re-attach an env that was forked away), the field ids
+// stay so merge still pairs them up, and every restored value gets a fresh clock. The entry has no
+// fieldOrder: the current order is kept and fields that come back are appended.
+export function restoreItemVersion(vault, itemId, entry, ctx) {
+  const c = stamp(ctx);
+  const item = liveItem(vault, itemId);
+  if (item.deletedAt !== null) fail('itemId');
+  if (entry === null || typeof entry !== 'object' || !Array.isArray(entry.fields)) fail('entry');
+  for (const f of entry.fields) {
+    if (f === null || typeof f !== 'object' || !isId(f.id)) fail('entry');
+    checkFieldShape(f);
+  }
+  for (const k of ['title', 'notes', 'expires']) if (!ITEM_CHECKS[k](entry[k])) fail('entry');
+  const live = entry.fields.filter((f) => f.deletedAt === null);
+  const saved = clone(item);
+  try {
+    const before = snapshot(item);
+    let revived = false;
+    for (const f of live) {
+      const current = item.fields.find((x) => x.id === f.id);
+      if (!current) item.fields.push({ ...clone(f), at: c.at, dev: c.dev, deletedAt: null });
+      else if (current.deletedAt !== null) Object.assign(current, { at: c.at, dev: c.dev, deletedAt: null });
+      else continue;
+      revived = true;
+    }
+    const ids = new Set(live.map((f) => f.id));
+    const kept = item.fieldOrder.filter((id) => ids.has(id));
+    const draft = {
+      title: entry.title,
+      notes: entry.notes,
+      expires: entry.expires,
+      fields: live.map((f) => ({ id: f.id, label: f.label, kind: f.kind, v: f.v, file: f.file ?? null })),
+      fieldOrder: [...kept, ...live.map((f) => f.id).filter((id) => !kept.includes(id))],
+    };
+    return saveItem(item, draft, ctx, { reason: 'restore', before, changed: revived ? ['fields'] : [] });
+  } catch (err) {
+    for (const k of Object.keys(item)) delete item[k];
+    Object.assign(item, saved);
+    throw err;
+  }
 }
 
 export function trashItem(vault, itemId, ctx) {

@@ -41,7 +41,7 @@ Mọi thao tác dưới đây là `async` trừ `assertSupported`, `newKdf`, `ne
 |---|---|---|---|
 | `assertSupported()` | — | — | `unsupported` (nêu tên API thiếu) |
 | `newKdf()` | — | `{ name: 'PBKDF2-SHA256', iter: 600000, salt: <b64 16B> }` | — |
-| `deriveFromPassword(password, kdf)` | `string`, `kdf` đã lưu | `{ encKey, authKey: Uint8Array(32) }` | `unsupported` (`kdf.name`, `kdf.iter` ngoài [`KDF_MIN_ITER`, `KDF_MAX_ITER`]) trước PBKDF2; `format` (`kdf`, `kdf.salt`); `invalid` |
+| `deriveFromPassword(password, kdf)` | `string` (chuẩn hoá NFC trước khi lấy byte UTF-8), `kdf` đã lưu | `{ encKey, authKey: Uint8Array(32) }` | `unsupported` (`kdf.name`, `kdf.iter` ngoài [`KDF_MIN_ITER`, `KDF_MAX_ITER`]) trước PBKDF2; `format` (`kdf`, `kdf.salt`); `invalid` |
 | `deriveFromPrf(prfBytes)` | `Uint8Array(32)` đầu ra PRF | `prfKey` | `invalid` |
 | `generateAccountKey()` | — | `accountKey` (32B ngẫu nhiên) | — |
 | `generateVaultKey()` | — | `vaultKey` (32B ngẫu nhiên) | — |
@@ -99,6 +99,7 @@ Thao tác sửa **thay đổi vault tại chỗ** và trả về thực thể v�
 | `newField({ label, kind, v, file? }, ctx)` | `file` chỉ cho `multi`/`secret-multi`, chuỗi không rỗng |
 | `createItem(vault, type, init, ctx)` | Field lấy từ mẫu của `type` (hoặc `init.fields`); `init` có thể có `title`, `notes`, `tags`, `favorite`, `expires`, `scopes`, `forkedFrom`. Loại lạ → `invalid` |
 | `updateItem(vault, itemId, draft, ctx)` | Xem dưới |
+| `restoreItemVersion(vault, itemId, entry, ctx)` | Xem dưới |
 | `trashItem` / `restoreItem` | Đặt / bỏ `deletedAt`, cập nhật `clock.deletedAt`; nội dung giữ nguyên |
 | `purgeItem(vault, itemId, ctx)` | Đặt `purgedAt` (và `deletedAt` nếu chưa có), xoá trắng nội dung. Xem dưới |
 | `validateVault(vault)` | `{ ok: true }` hoặc `{ ok: false, errors: [{ path, code, message }] }` |
@@ -114,6 +115,13 @@ Thao tác sửa **thay đổi vault tại chỗ** và trả về thực thể v�
 
 Đổi `title`, `type`, `fields`, `notes`, `expires` hoặc `scopes` thì bản **trước** lần lưu được đẩy vào đầu `history` dưới dạng `{ at, rev, dev, reason: 'edit', title, type, fields, notes, expires, scopes }`, với `rev` là `rev` của bản cũ và `at`/`dev` là thời điểm và thiết bị đã thay bản đó; `history` cắt còn `HISTORY_MAX`. Đổi `favorite`, `fieldOrder`, `tags` không tạo bản lịch sử. Item trong thùng rác hoặc đã purge không sửa được (`invalid`).
 
+**`restoreItemVersion` — khôi phục một bản lịch sử** (KM-003, FR28). `entry` là một phần tử của `item.history`. Đặt `title`, `notes`, `expires`, `fields` theo bản đó, như một lần lưu với `reason: 'restore'`. Lý do cần thao tác riêng: `updateItem` ghi cứng `reason: 'edit'` và từ chối field đã có tombstone, trong khi field đã xoá phải quay lại được.
+
+- `scopes` và `type` giữ nguyên: khôi phục `scopes` sẽ gán item lại vào env đã fork đi.
+- Field giữ nguyên `id` và nhận đồng hồ mới, nên `merge` vẫn ghép đúng. Field còn sống mà không có trong bản đó bị xoá.
+- Bản lịch sử không chứa `fieldOrder`: giữ thứ tự hiện tại, field quay lại nối vào cuối.
+- Bản giống hệt hiện tại thì không làm gì (không tăng `rev`, không thêm lịch sử). `entry` sai hình dạng → `invalid`, item không đổi.
+
 **Purge.** Tombstone giữ đủ khoá của schema item để vẫn hợp lệ, nhưng chỉ `id`, `deletedAt`, `purgedAt` còn mang nghĩa: `title = ''`, `fields = []`, `fieldOrder = []`, `notes = ''`, `history = []`, `tags = []`, `scopes = []`, `favorite = false`, `expires = null`, `forkedFrom = null`, `conflict = null`. `type`, `rev`, `createdAt`, `updatedAt`, `clock` được giữ (không bí mật).
 
 **`validateVault`.** `code` của vi phạm: `version`, `required`, `type`, `enum`, `file-kind`, `duplicate-id`, `dangling-ref` (env trỏ tới project không tồn tại), `history-max`. `path` dạng `items[1].fields[0].file`. Item có `scopes = []` hoặc trỏ tới env đã xoá là hợp lệ.
@@ -125,7 +133,7 @@ Thao tác sửa **thay đổi vault tại chỗ** và trả về thực thể v�
 | `merge(base, local, remote)` | Ba bản của **cùng một vault** đã giải mã. `base` là bản chung gần nhất, có thể là `null`/`undefined` | Vault **mới** `{ v, vaultId, projects, envs, items }` | `invalid` |
 | `DELETED_ELSEWHERE = 'deleted-elsewhere'` | Hằng | Giá trị của `note` trên bản lịch sử `conflict` sinh ra khi việc chuyển vào thùng rác thua một lần sửa | — |
 
-Các quy tắc chuẩn nằm ở [05-sync.md](05-sync.md) § "Thuật toán gộp ba chiều theo field". Mục này là hợp đồng mà KM-006 (sync) và KM-009 (thùng rác) dựa vào, gồm cả những chỗ 05 để engineer chọn.
+Các quy tắc chuẩn nằm ở [05-sync.md](05-sync.md) § "Thuật toán gộp ba chiều theo field". Mục này là hợp đồng mà KM-006 (sync) và KM-008 (thùng rác) dựa vào, gồm cả những chỗ 05 để engineer chọn.
 
 **Đầu vào và lỗi.** `local`, `remote` và `base` (nếu có) phải qua `validateVault`, cùng `v` và cùng `vaultId`. Sai thì ném `KeymeshError('invalid')` với `message` là `Invalid argument: <tên>`, trong đó `<tên>` là một trong `local`, `remote`, `base`, `v`, `vaultId`. Thứ tự kiểm: `local`, `remote`, `base`, rồi `v`, rồi `vaultId`. Không có giá trị nào của vault trong lỗi. Khi ném lỗi thì không có kết quả, và không đầu vào nào bị đổi. `base` vắng thì coi là vault rỗng cùng `vaultId` với `local`.
 
@@ -190,15 +198,15 @@ Các quy tắc chuẩn nằm ở [05-sync.md](05-sync.md) § "Thuật toán gộ
 |---|---|---|
 | KM-002 (merge) | Đồng hồ theo thuộc tính/field, lịch sử, tombstone, hình dạng vault | `clock` của project/env/item, `field.at`/`dev`, `history`, `HISTORY_MAX`, `deletedAt`/`purgedAt`, `updateItem` (cách một lần lưu ghi đồng hồ/lịch sử), `validateVault` cho kết quả gộp |
 | KM-006 (sync) | Gộp khi bị 409 và khi pull lúc đang dirty | `merge(base, local, remote)`; lỗi `invalid` nghĩa là một bản hỏng hoặc khác vault, không gộp |
-| KM-009 (thùng rác) | Hiện bản lịch sử "đã bị xoá ở thiết bị khác", đánh dấu `deletedAt`/`purgedAt` | `DELETED_ELSEWHERE`, `item.conflict.attrs`, bảng xoá ở § `merge.js` |
-| KM-003 (app cục bộ) | Tạo tài khoản và vault mặc định, mở khoá offline, sửa và lưu, tạo item theo loại | `createAccount`, `unlockWithPassword`, `encryptVault`, `encryptVaultMeta`, `createItem`, `ITEM_TEMPLATES`, `ITEM_TYPES`, `FIELD_KINDS`, `newField`, `updateItem`, `add*`/`update*`/`delete*`, `trashItem`/`restoreItem`/`purgeItem`, `newId('device')` |
+| KM-008 (thùng rác) | Hiện bản lịch sử "đã bị xoá ở thiết bị khác", đánh dấu `deletedAt`/`purgedAt` | `DELETED_ELSEWHERE`, `item.conflict.attrs`, bảng xoá ở § `merge.js` |
+| KM-003 (app cục bộ) | Tạo tài khoản và vault mặc định, mở khoá offline, sửa và lưu, tạo item theo loại | `createAccount`, `unlockWithPassword`, `encryptVault`, `encryptVaultMeta`, `createItem`, `ITEM_TEMPLATES`, `ITEM_TYPES`, `FIELD_KINDS`, `newField`, `updateItem`, `restoreItemVersion`, `add*`/`update*`/`delete*`, `validateVault`, `newId('device')`. Không gọi `trashItem`/`restoreItem`/`purgeItem` (KM-008) |
 | KM-005 (server) | `authKey` để gửi, các envelope để lưu nguyên dạng, tham số `kdf` | `newKdf`, `deriveFromPassword` → `authKey`; dạng `wrappedAccountKey`, `record` (`wrappedVaultKey`, `meta`, `envelope`) ở trên; server chỉ lưu, không gọi thao tác giải mã nào |
 | KM-007 (passkey) | `prfKey` bọc trực tiếp `accountKey` | `deriveFromPrf`, `wrapAccountKey`, `unwrapAccountKey`, `unlockWithAccountKey` |
-| KM-008 (đổi mật khẩu, xoay khoá) | Bọc lại cùng `accountKey` dưới khoá mới; khoá mới | `newKdf`, `deriveFromPassword`, `wrapAccountKey`, `generateAccountKey`, `generateVaultKey`, `wrapVaultKey` |
+| KM-009 (đổi mật khẩu, xoay khoá) | Bọc lại cùng `accountKey` dưới khoá mới; khoá mới | `newKdf`, `deriveFromPassword`, `wrapAccountKey`, `generateAccountKey`, `generateVaultKey`, `wrapVaultKey` |
 
 ## Lưu ý cho epic sau
 
 - **KM-002 (đã làm):** quy tắc gộp, gồm cả việc xoá project/env, nằm ở § `merge.js` ở trên. Project/env vẫn không có `clock.deletedAt`; nếu sau này thêm thì thiếu được coi là `{ at: 0 }`.
-- **KM-003/KM-004:** sau khi gộp có thể có env sống dưới project đã xoá, hoặc item chỉ còn trỏ tới env đã xoá; cả hai đều hợp lệ. Cách hiển thị là việc của KM-003 (spec KM-002, Concern 10).
+- **KM-003/KM-004:** sau khi gộp có thể có env sống dưới project đã xoá, hoặc item chỉ còn trỏ tới env đã xoá; cả hai đều hợp lệ. Cách hiển thị (KM-003 Concern 12, originator chốt 2026-11-01): env sống dưới project đã xoá được **coi như đã xoá khi hiển thị**: không hiện ở điều hướng, không tính là env sống, item chỉ trỏ tới env đó vào *Chưa gán*. Không ghi gì thêm vào vault. Quy tắc nằm ở `liveEnvs()` của `js/vault-query.js`, không nằm trong lõi.
 - **KM-003:** `DEFAULT_VAULT_META.name` là chuỗi rỗng; app tự đặt tên hiển thị khi gọi `createAccount`. Id hex trần (không tiền tố) được chấp nhận khi kiểm tra; lõi không có bộ đọc file v1.
-- **Password** được đưa vào PBKDF2 dưới dạng byte UTF-8, **không chuẩn hoá Unicode**. Cùng một mật khẩu gõ trên hai bàn phím cho ra dạng NFC/NFD khác nhau sẽ là hai mật khẩu khác nhau; muốn chuẩn hoá thì phải quyết trước khi có dữ liệu thật (đổi là đổi định dạng).
+- **Password** được chuẩn hoá NFC rồi đưa vào PBKDF2 dưới dạng byte UTF-8 (KM-003 Concern 2), nên hai dạng NFC/NFD của một mật khẩu mở cùng một tài khoản. Từ đây đổi cách chuẩn hoá là đổi định dạng.

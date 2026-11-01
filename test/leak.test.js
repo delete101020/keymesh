@@ -16,7 +16,7 @@ import {
   newKdf,
   _internal,
 } from '../src/public/js/core/crypto.js';
-import { createVault, createItem, updateItem, validateVault } from '../src/public/js/core/model.js';
+import { createVault, createItem, updateItem, restoreItemVersion, validateVault } from '../src/public/js/core/model.js';
 import { toHex, toBase64, utf8Encode, randomBytes } from '../src/public/js/core/bytes.js';
 import { ctx, flipB64 } from '../testkit/helpers.js';
 import { merge } from '../src/public/js/core/merge.js';
@@ -164,4 +164,18 @@ test('AC22 KM-002 NFR05 merge errors and console carry no vault value', () => {
     assert.equal('cause' in e, false);
     for (const s of [e.message, e.stack, String(e), JSON.stringify(e)]) assert.ok(!s.includes(MARK), 'merge leaked a vault value');
   }
+});
+
+test('KM-003 NFR03 a marker in a history entry does not reach an error from restoreItemVersion', () => {
+  const vault = createVault(VID);
+  const item = createItem(vault, 'login', { title: PT }, ctx());
+  const bad = { title: PT, notes: PT, expires: null, fields: [{ id: 'f_0000000000000001', label: PT, kind: PT, v: PT, deletedAt: null }] };
+  let error;
+  try {
+    restoreItemVersion(vault, item.id, bad, ctx());
+  } catch (e) {
+    error = e;
+  }
+  assert.equal(error?.code, 'invalid');
+  for (const s of [error.message, error.stack, String(error), JSON.stringify(error)]) assert.ok(!s.includes(PT));
 });

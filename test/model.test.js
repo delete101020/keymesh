@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { merge } from '../src/public/js/core/merge.js';
 import {
   HISTORY_MAX,
   ITEM_TYPES,
@@ -17,6 +18,7 @@ import {
   createItem,
   newField,
   updateItem,
+  restoreItemVersion,
   trashItem,
   restoreItem,
   purgeItem,
@@ -401,4 +403,76 @@ test('FR23 KM-002 AC28 docs/09-core-api.md names every public export of crypto.j
       assert.ok(doc.includes(`\`${name}`), `${file} export ${name} is missing from docs/09`);
     }
   }
+});
+
+// --- KM-003: restoreItemVersion ------------------------------------------------------------------
+
+function restoreFixture() {
+  const v = createVault('00000000000000aa');
+  const p = addProject(v, { name: 'P' }, ctx(T0));
+  const uat = addEnv(v, p.id, { name: 'uat' }, ctx(T0));
+  const stg = addEnv(v, p.id, { name: 'staging' }, ctx(T0));
+  const item = createItem(v, 'login', { title: 'old', notes: 'n0', expires: '2030-01-01', scopes: [uat.id, stg.id] }, ctx(T0));
+  const [user, pass, url] = item.fields;
+  updateItem(v, item.id, { fields: [{ id: user.id, v: 'u1' }, { id: pass.id, v: 'p1' }, { id: url.id, v: 'https://a.example' }] }, ctx(T0 + 1));
+  return { v, item, user, pass, url, uat, stg };
+}
+
+test('KM-003 AC25 FR28 restore puts back title, fields, notes, expires; scopes stay; deleted field returns', () => {
+  const { v, item, user, pass, url, uat } = restoreFixture();
+  const target = item.history[0];
+  updateItem(v, item.id, { title: 'new', notes: 'n1', expires: null, scopes: [uat.id], fields: [{ id: pass.id, v: 'p2' }] }, ctx(T0 + 2));
+  const rev = item.rev;
+  const r = restoreItemVersion(v, item.id, target, ctx(T0 + 3));
+  assert.equal(r, item);
+  assert.equal(item.title, 'old');
+  assert.equal(item.notes, 'n0');
+  assert.equal(item.expires, '2030-01-01');
+  assert.deepEqual(item.scopes, [uat.id]);
+  assert.equal(item.history[0].reason, 'restore');
+  assert.equal(item.history[0].title, 'new');
+  assert.equal(item.rev, rev + 1);
+  const live = item.fields.filter((f) => f.deletedAt === null);
+  assert.deepEqual(new Set(live.map((f) => f.id)), new Set([user.id, pass.id, url.id]));
+  assert.equal(item.fields.find((f) => f.id === pass.id).v, '');
+  // The field kept through the edit keeps its place; the ones coming back go after it.
+  assert.deepEqual(item.fieldOrder, [pass.id, user.id, url.id]);
+  assert.equal(item.fields.find((f) => f.id === user.id).at, T0 + 3);
+  assert.equal(item.clock.title.at, T0 + 3);
+  assert.deepEqual(validateVault(v), { ok: true });
+});
+
+test('KM-003 AC25 FR28 restoring a version equal to the current one changes nothing', () => {
+  const { v, item } = restoreFixture();
+  const entry = { title: item.title, notes: item.notes, expires: item.expires, fields: structuredClone(item.fields) };
+  const before = JSON.stringify(item);
+  restoreItemVersion(v, item.id, entry, ctx(T0 + 9));
+  assert.equal(JSON.stringify(item), before);
+});
+
+test('KM-003 AC25 restore then merge: the result validates and the restored values win over the base', () => {
+  const { v, item, pass } = restoreFixture();
+  updateItem(v, item.id, { fields: [{ id: pass.id, v: 'p2' }] }, ctx(T0 + 2));
+  const base = structuredClone(v);
+  const local = structuredClone(v);
+  restoreItemVersion(local, item.id, local.items[0].history[0], ctx(T0 + 3));
+  const merged = merge(base, local, structuredClone(base));
+  assert.deepEqual(validateVault(merged), { ok: true });
+  assert.equal(merged.items[0].history[0].reason, 'restore');
+  assert.equal(merged.items[0].fields.find((f) => f.id === pass.id).v, 'p1');
+});
+
+test('KM-003 FR28 restore rejects a malformed entry and leaves the item untouched', () => {
+  const { v, item } = restoreFixture();
+  const before = JSON.stringify(item);
+  assert.throws(() => restoreItemVersion(v, item.id, null, ctx(T0 + 3)), hasCode('invalid'));
+  assert.throws(() => restoreItemVersion(v, item.id, { title: 't', notes: '', expires: null, fields: [{ id: 'nope' }] }, ctx(T0 + 3)), hasCode('invalid'));
+  assert.equal(JSON.stringify(item), before);
+});
+
+test('KM-003 AC24 FR27 25 saves keep the 20 newest versions', () => {
+  const { v, item } = restoreFixture();
+  for (let n = 0; n < 25; n++) updateItem(v, item.id, { title: `t${n}` }, ctx(T0 + 10 + n));
+  assert.equal(item.history.length, 20);
+  assert.equal(item.history[0].title, 't23');
 });
