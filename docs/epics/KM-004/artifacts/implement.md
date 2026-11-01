@@ -27,6 +27,7 @@
 | 3 | 5–6 | `6b96773` | `npm test`, `mobile.e2e.js`, `lock.e2e.js` | done |
 | 4 | 7–8 | `9289661` | `npm test`, `test:e2e` (88/88) | done |
 | 5 | 9–11 | `d3ecb32` và commit tài liệu | Cả bốn lệnh test; giả lập Android | **một phần:** bước 9 xong; bước 10 còn iOS và năm mục KM-003; bước 11 ghi theo kết quả hiện có, phải cập nhật sau bước 10 |
+| 6 | 10 (iOS), 11 | `63ad742`, `5a09f64` và commit tài liệu | Cả bốn lệnh test; giả lập iOS 18.6 | **một phần:** phần iOS xong, tìm và sửa 2 lỗi; còn năm mục KM-003, copy bằng tay trên Safari và Firefox desktop, và quyết định về màn đa nhiệm |
 
 ## 3. What was built
 
@@ -34,7 +35,7 @@
 
 | Plan step | Change | Files |
 |---|---|---|
-| 1 | `BROWSER_APP=Safari\|Firefox`; đã cài Firefox bằng brew | `testkit/browser/run.mjs` |
+| 1 | `BROWSER_APP=Safari\|Firefox`; đã cài Firefox bằng brew; báo khi trang bị ẩn | `testkit/browser/run.mjs`, `index.html` |
 | 2 | `_headers` là nguồn header duy nhất; server cục bộ đọc từ đó và không phục vụ chính nó | `src/public/_headers`, `testkit/serve.mjs` |
 | 3 | Manifest, icon sinh bằng Chrome, thẻ cài đặt | `manifest.webmanifest`, `icons/*`, `index.html`, `testkit/gen-icons.mjs` |
 | 4 | SW chỉ precache, bỏ qua `/api/*` và khác origin; `VERSION`, `SHELL` tính từ nội dung file; banner bản mới, có nháp thì hỏi trước | `sw.js`, `js/pwa.js`, `testkit/sw-version.mjs`, `app.js`, `ui/shell.js`, `driver.mjs`, `test/sw.test.js`, `test/e2e/pwa.e2e.js`, `sweep.e2e.js` (AC46) |
@@ -43,7 +44,7 @@
 | 7 | Back theo `history`, vuốt từ mép trái, Back đóng dialog, Back có nháp thì hỏi, URL không đổi | `ui/nav-history.js` |
 | 8 | Gần đây, Yêu thích, tab env, nút sao, đưa nút phụ xuống dưới field ở màn hẹp, `autocapitalize`, input 16 px, safe area | `ui/home.js`, `nav.js`, `list.js`, `detail.js`, `edit.js`, `icons.js`, `vault-query.js`, `styles.css` |
 | 9 | Firefox 159 tự che `textarea.masked`, không cần sửa CSS (ảnh ở `evidence/`) | Không đổi mã |
-| 10 | Kiểm trên Safari, Firefox, giả lập Android; còn phần ở §7 | `evidence/*` |
+| 10 | Kiểm trên Safari, Firefox, giả lập Android và iOS; còn phần ở §7. Sửa 2 lỗi chỉ thấy trên WebKit: xoá clipboard và copy OTP (`63ad742`), vuốt mép gây khoá (`5a09f64`) | `evidence/*`, `clipboard.js`, `app.js`, `ui/nav-history.js`, `test/clipboard.test.js`, `test/e2e/mobile.e2e.js`, `docs/04` |
 | 11 | Tài liệu ghi đúng trạng thái hiện tại, M2 ghi là **chưa đạt** | `docs/02`, `03`, `04`, `07`, `08`, `README.md`, `KM-004.md`, `KM-005.md` |
 
 ## 4. Proofs executed
@@ -51,18 +52,18 @@
 > *The real command and its real output, per acceptance criterion. Never a claim
 > without output.*
 
-**Bảng kết quả.** "Giả lập Android" là AVD `Xperia_1V_API_35`, Android 15, Chrome 124, điều khiển bằng `adb` và CDP.
+**Bảng kết quả.** "Giả lập Android" là AVD `Xperia_1V_API_35`, Android 15, Chrome 124, điều khiển bằng `adb` và CDP. "Giả lập iOS" là iPhone 16, iOS 18.6, Xcode 16.4, điều khiển bằng XCUITest.
 
 | Criterion | Kết quả | Còn thiếu |
 |---|---|---|
-| `KM-004-AC01` | Một phần | Copy bằng cử chỉ thật trên Safari. Lần treo: không tái hiện được, chưa rõ nguyên nhân |
+| `KM-004-AC01` | Một phần: luồng chính đạt; copy bằng chạm thật đạt trên Safari iOS; đã đo được một nguyên nhân gây treo | Copy bằng tay trên Safari desktop. Chạy lại `BROWSER_APP=Safari npm run test:browser` khi màn hình mở khoá (bản 216 test chưa chạy hết trên Safari) |
 | `KM-004-AC02` | Một phần | Copy bằng cử chỉ thật trên Firefox |
 | `KM-004-AC03` | **Chưa chạy** | Cả năm mục, cần originator |
-| `KM-004-AC04` | Đạt trên Android | iOS chưa kiểm. Ở standalone offline mới tới màn khoá; mở khoá offline đã kiểm ở tab Chrome |
-| `KM-004-AC05` | Đạt | Không có |
-| `KM-004-AC06` | **Fail một nửa:** khoá nền đạt, màn đa nhiệm lộ secret | Quyết định của originator; iOS chưa kiểm |
+| `KM-004-AC04` | Đạt trên cả hai | Android: ở standalone offline mới tới màn khoá, mở khoá offline đã kiểm ở tab Chrome. iOS: đủ cả mật khẩu sai và đúng ở standalone |
+| `KM-004-AC05` | Đạt, cả trên iOS | Không có |
+| `KM-004-AC06` | **Fail một nửa:** khoá nền đạt, màn đa nhiệm lộ secret, trên cả hai giả lập | Quyết định của originator |
 | `KM-004-AC07` | Đạt | Không có |
-| `KM-004-AC08` | Đạt trên Chrome và Android | Vuốt mép chỉ thử bằng touch giả lập; iOS chưa kiểm |
+| `KM-004-AC08` | Đạt trên Chrome, Android, iOS | Android: vuốt mép chỉ thử bằng touch giả lập. iOS: vuốt mép và 3 lần chạm đều thật, sau khi sửa lỗi |
 | `KM-004-AC09` | Một phần | Tài liệu đúng với hiện tại, phải cập nhật lần cuối sau bước 10 |
 | `KM-004-AC10` | Đạt | Cú pháp trên Cloudflare chuyển KM-005 |
 | `KM-004-AC11` | Đạt | Không có |
@@ -204,7 +205,17 @@ Standalone, force-stop Chrome, adb reverse --remove, mở lại từ icon:
   viewport: [360,792,"http://localhost:8787/","KeyMesh\nĐã khoá\n\nMở khoá diễn ra trên má"]
 ```
 
-Ảnh: `evidence/android-standalone-offline.png`. AVD không có Play Store nên có thể không phải WebAPK; icon vẫn mở ở standalone. **iOS chưa kiểm vì máy chưa có Xcode.**
+Ảnh: `evidence/android-standalone-offline.png`. AVD không có Play Store nên có thể không phải WebAPK; icon vẫn mở ở standalone.
+
+**iOS, app thêm bằng Share → Add to Home Screen, mở từ icon (không có thanh trình duyệt).** Tắt server thật, thoát hẳn app, mở lại từ icon. Ảnh: `evidence/ios-standalone-offline.png`.
+
+```
+server rc=7                (curl không kết nối được)
+sai mật khẩu:  label 'Sai mật …', vẫn ở màn khoá
+đúng mật khẩu: pane: Vault mặc định → pane: Sửa, thấy 'appuser'
+```
+
+iOS tách dữ liệu của app đã cài khỏi tab Safari: cài xong phải tạo tài khoản lại, vault ở Safari không sang.
 
 ### `KM-004-AC05`
 
@@ -225,6 +236,16 @@ back after 65 s [vis, unlocked, title in DOM, lock text]: ["visible",false,false
 ```
 in switcher: ["visible",true,false]         (visibility, hasFocus, có #shield)
 ```
+
+**iOS: kết quả tương tự.** Đo lại trên bản đã sửa, sau khi mở khoá và bấm hiện secret, ở standalone:
+
+```
+revealed before leaving: 1
+short bg  revealed: 1 locked: 0
+after 65 s  locked: 2 secret: 0 title: 0      (số dòng khớp trong cây giao diện)
+```
+
+Tab Safari cho cùng kết quả. Màn đa nhiệm lộ cả khi đã rời app rồi mới mở, và **ảnh vẫn còn secret sau 65 giây**, dù quay lại thì app đã khoá (`evidence/ios-safari-switcher-65s.png`, `evidence/ios-standalone-switcher.png`).
 
 ### `KM-004-AC07`
 
@@ -251,6 +272,79 @@ toast: Đã copy. Sẽ xoá khỏi clipboard sau 30 giây.
 ```
 
 Trên Android chỉ thấy toast, không đọc lại được giá trị (`clipboard: read refused: NotAllowedError`). Giá trị đúng đã kiểm ở e2e Chrome.
+
+**iOS, ở standalone:** từ màn khoá, chạm Mở khoá, chạm item ở Gần đây, chạm Copy Password:
+
+```
+toast: Đã copy. Sẽ xoá khỏi clipboard sau 30 giây nếu trình duyệt cho phép.
+clipboard: [APPSECRET456]        (xcrun simctl pbpaste)
+```
+
+**Lỗi 1, clipboard trên WebKit (rủi ro ở plan §4, đã sửa).** Trước khi sửa, ở tab Safari:
+
+```
+after copy: [IOSSECRET123]
+t+33: [IOSSECRET123]             (không xoá, toast vẫn nói "Sẽ xoá")
+after return: [IOSSECRET123]     (quay lại app cũng không xoá)
+after lock: []                   (bấm Khoá là cử chỉ thật nên xoá được)
+copy OTP: "Không copy được: trình duyệt đã từ chối."
+```
+
+Sau khi sửa:
+
+```
+otp: [488895]   expected otp now: 488895       (tính độc lập bằng Python)
+pw: [IOSSECRET123]
+t+32: [IOSSECRET123]   toast: Trình duyệt chưa cho xoá clipboard. Chạm vào app để xoá.
+after tap: []          toast: Đã xoá khỏi clipboard.
+```
+
+**Lỗi 2, vuốt mép gây khoá vault (đã sửa).** Tái hiện 2/2 lần ở standalone. Log từ bản sao có gắn ghi sự kiện, không vào repo:
+
+```
+touchend x=260
+popstate {"km":0}
+pagehide persisted=false
+load nav=navigate                (cả trang tải lại, vault khoá)
+```
+
+Sau khi sửa, không còn khoá, ở cả standalone và tab Safari:
+
+```
+pane: Sửa → pane: Thêm item → pane: Vault mặc định
+```
+
+Lần đo ở standalone chạy trên bản thật: bật lại server thì không có banner, tức SW đang chạy trùng với `sw.js` trên server.
+
+Test cuối trên code hiện tại:
+
+```
+$ npm test                          tests 228  pass 223  fail 0  skipped 5
+$ npm run test:e2e                  tests 89   pass 89   fail 0
+$ npm run test:browser              tests 216  pass 216  fail 0
+```
+
+Số 209 của Safari và Firefox ở phần đầu là trước khi thêm test clipboard. Số mới: Firefox 216/216. **Safari chưa chạy hết bản 216 test**, lý do ở dưới.
+
+**Lần treo ở Safari: đã đo được nguyên nhân, trong điều kiện hôm nay.** Máy đang khoá màn hình trong lúc chạy, trang báo `hidden` từ đầu, và timer gần như dừng:
+
+```
+$ swift -e '... CGSessionCopyCurrentDictionary ...'
+locked= 1
+
+15 start hidden focus=false  Version/27.2 Safari/605.1.15
+ran 11 ok ...      (rồi không chạy tiếp)
+ticks seen: 6      (setInterval 1 giây, trong 25 giây)
+
+trang đo riêng, tab hidden: 2 nhịp setTimeout(0) trong 24 giây
+```
+
+Firefox trong cùng điều kiện vẫn xong nhưng chậm: 81 giây so với 13 giây. Lần treo 180 giây ở KM-003 không có log nên chưa thể khẳng định cùng nguyên nhân, chỉ có khả năng. Chưa có lần chạy đối chứng ở màn hình mở khoá sau thay đổi này; lần chạy trước đó trong phiên, bản 209 test, xong trong 16 giây. `testkit/browser/run.mjs` giờ tự báo lý do:
+
+```
+Timed out after 180 s waiting for http://127.0.0.1:60477/testkit/browser/index.html
+The page was hidden during the run, so its timers were held back. Unlock the screen, keep the window visible and run again.
+```
 
 **Một điểm chưa giải thích:** ở lần chạy đầu, dùng click bằng script, lần bấm Back đầu tiên không chuyển màn (`Back key from detail →: detail`). Không lặp lại khi chạm thật. Có thể phím Back bị bàn phím ảo hoặc Chrome giữ lại, nhưng chưa xác nhận.
 
@@ -289,6 +383,10 @@ Xem `test/settings.test.js`, `test/vault-query.test.js`, `mobile.e2e.js` ở tr�
 6. `detail.js` chọn vị trí nút theo `matchMedia` lúc vẽ, và vẽ lại khi đổi ngưỡng, vì CSS không chuyển được nút xuống dưới field mà giữ nguyên desktop.
 7. Không chạy `/verify` trước mỗi commit theo hướng dẫn chung của công cụ: trong repo này đó là bước verify độc lập của pipeline (giống KM-003).
 8. PR chưa mở vì không có `gh`.
+9. Thêm test và sửa 2 lỗi WebKit (amendment 4, 5 trong `plan.md` §8). Câu toast đổi thành "... nếu trình duyệt cho phép".
+10. iOS chạy bằng bộ điều khiển XCUITest một lần thay vì đi tay (amendment 6). Bộ này không kiểm được copy trên Safari desktop.
+11. **Sự cố lúc kiểm, lỗi của script, không phải của app.** Một lần chạm trượt vào thanh địa chỉ của Safari nên chuỗi thử `JBSWY3DPEHPK3PXP` bị gõ vào đó và đi tới gợi ý tìm kiếm của Google. Đây là chuỗi mẫu công khai, không phải secret. Đã thêm chặn chạm ngoài vùng trang. Ngoài ra Simulator đồng bộ clipboard với máy Mac, nên clipboard Mac có thể đã bị ghi đè bằng giá trị thử trong lúc kiểm.
+12. `testkit/browser/run.mjs` và `index.html` thêm báo trang bị ẩn khi hết giờ, để lần treo sau tự giải thích. Thuộc bước 1, thêm sau khi đo được nguyên nhân.
 
 ## 6. Discovered work
 
@@ -300,15 +398,20 @@ Xem `test/settings.test.js`, `test/vault-query.test.js`, `mobile.e2e.js` ở tr�
 | Màn đa nhiệm lộ nội dung; web không có cách chặn đã biết | Chờ originator, §7 |
 | Chrome đề nghị lưu master password vào Google Password Manager (thấy trên giả lập, sau khi mở khoá) | Chưa làm; originator quyết có đổi `autocomplete` không |
 | Trên trang chủ hẹp, "Tất cả" vẫn tô như đang chọn dù chưa vào list | Chưa làm; nhỏ, có từ KM-003 |
+| iOS đề nghị tạo và lưu "Strong Password" ở ô master password và cả ô secret, ô OTP của item; sau khi mở khoá hỏi "Save Password?". Cùng loại với việc của Chrome ở trên | Chưa làm; originator quyết cùng lúc với Chrome |
+| Trên màn khoá iOS, bàn phím tự bật che banner "Tải lại" nên phải ẩn bàn phím mới thấy | Chưa làm; nhỏ |
+| Trên WebKit, rời app trước khi chạm lại thì secret còn trong clipboard, không có cách xoá từ web | Ghi ở `docs/04`; xem xét cùng khi kiểm máy thật |
 | Kiểm `_headers` trên Cloudflare | `docs/epics/KM-005/KM-005.md` |
 
 ## 7. Known gaps
 
 > *What a reviewer should look at hardest.*
 
-- **`AC06` chưa đạt: màn đa nhiệm lộ secret đang hiện trên Android.** Đây là tiêu chí ở intent §5, nên epic không đóng được cho tới khi originator chọn: chấp nhận và đổi tiêu chí, thêm tự che lại secret sau vài giây (giảm chứ không hết, vì tiêu đề và username vẫn hiện), hoặc giữ tiêu chí và để M2 mở. Đề xuất của engineer: chấp nhận cho M2 vì chỉ dùng dữ liệu thử, và mở intent riêng cho việc tự che lại.
-- **Chưa có gì trên iOS.** Cần cài Xcode rồi kiểm cài, offline, khoá nền, màn đa nhiệm, 3 lần chạm, Back. Rủi ro clipboard trên WebKit (`plan.md` §4) vẫn chưa được kiểm.
+- **`AC06` chưa đạt: màn đa nhiệm lộ secret đang hiện, trên cả Android và iOS.** Đây là tiêu chí ở intent §5, nên epic không đóng được cho tới khi originator chọn: chấp nhận và đổi tiêu chí, thêm tự che lại secret sau vài giây (giảm chứ không hết, vì tiêu đề và username vẫn hiện), hoặc giữ tiêu chí và để M2 mở. Đề xuất của engineer: chấp nhận cho M2 vì chỉ dùng dữ liệu thử, và mở intent riêng cho việc tự che lại.
+- **Bản sửa clipboard mới kiểm trên iOS và Chrome.** Chưa kiểm lại trên giả lập Android và Safari, Firefox desktop bằng tay. Giá trị đọc lại khi copy trên Android vẫn chưa xác nhận.
+- **`ui/nav-history.js` nhận diện iOS bằng `'standalone' in navigator`.** E2E chỉ giả lập thuộc tính này trên Chrome; hành vi thật đã kiểm một lần trên iOS 18.6.
 - **`AC03`: năm mục KM-003 chưa chạy.**
+- **Safari desktop chưa chạy hết bản 216 test**, vì màn hình đang khoá. Cần chạy lại khi mở khoá.
 - `ui/nav-history.js` là chỗ dễ sai nhất: `history.go` bất đồng bộ, được giữ khớp bằng bộ đếm `popping`.
 - Khoá nền trong e2e dùng `visibilityState` giả và `Date.now` giả; bản thật chỉ chạy trên giả lập Android.
 - Bộ chọn file đưa app ra nền quá thời gian đã đặt thì khoá và mất nháp. Đã chấp nhận ở plan, chưa thử.

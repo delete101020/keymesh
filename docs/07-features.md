@@ -11,7 +11,7 @@ Ký hiệu ưu tiên: **P1** bắt buộc cho bản đầu · **P2** nên có ·
 | F-AUTH-02 | Đăng nhập trên thiết bị mới | P1 | 🆕 |
 | F-AUTH-03 | Mở khoá bằng master password, chạy được cả khi offline | P1 | ✅ (v1 dùng file) → 🆕 |
 | F-AUTH-04 | Mở khoá bằng passkey (vân tay/Face ID), bật hoặc tắt theo từng thiết bị | P1 | 🆕 |
-| F-AUTH-05 | Khoá thủ công; tự khoá khi không thao tác; tự khoá khi app chuyển sang nền (mobile) | P1 | ✅ (khoá nền kiểm trên Android giả lập; iOS chưa kiểm) |
+| F-AUTH-05 | Khoá thủ công; tự khoá khi không thao tác; tự khoá khi app chuyển sang nền (mobile) | P1 | ✅ (khoá nền đã kiểm trên giả lập Android và iOS) |
 | F-AUTH-06 | Đổi master password | P1 | ✅ → 🆕 (theo luồng mới) |
 | F-AUTH-07 | Quản lý thiết bị: xem và thu hồi session | P2 | 🆕 |
 | F-AUTH-08 | Đăng xuất (tuỳ chọn xoá dữ liệu cục bộ) | P1 | 🆕 |
@@ -89,10 +89,10 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 
 | ID | Chức năng | Ưu tiên | Trạng thái |
 |---|---|---|---|
-| F-PWA-01 | Cài được lên màn hình chính (manifest, icon), mở ở chế độ standalone | P1 | ✅ Android giả lập; iOS chưa kiểm |
-| F-PWA-02 | Mở được khi offline (Service Worker cache app shell) | P1 | ✅ Android giả lập; iOS chưa kiểm |
+| F-PWA-01 | Cài được lên màn hình chính (manifest, icon), mở ở chế độ standalone | P1 | ✅ giả lập Android và iOS |
+| F-PWA-02 | Mở được khi offline (Service Worker cache app shell) | P1 | ✅ giả lập Android và iOS |
 | F-PWA-03 | Báo khi có phiên bản app mới và cho bấm để tải lại | P2 | ✅ |
-| F-PWA-04 | Giao diện mobile riêng (xem bên dưới) | P1 | ✅ một phần: màn đa nhiệm vẫn lộ nội dung trên Android (04); iOS chưa kiểm |
+| F-PWA-04 | Giao diện mobile riêng (xem bên dưới) | P1 | ✅ một phần: màn đa nhiệm vẫn lộ nội dung trên giả lập Android và iOS (04) |
 | F-PWA-05 | Giao diện sáng/tối theo hệ thống | P1 | ✅ |
 | F-PWA-06 | Share target: chia sẻ link từ app khác vào để tạo nhanh item `doc` (chỉ Android) | P3 | ⏳ |
 
@@ -144,7 +144,7 @@ Nguyên tắc cho mobile:
 - Vùng chạm tối thiểu 44×44 px. Ô tìm kiếm luôn ở đầu trang chủ.
 - Sửa item mở màn hình toàn trang; field secret dùng `autocomplete="off"`, `autocapitalize="off"` và `spellcheck="false"`.
 - Vuốt từ mép trái hoặc bấm "‹" để quay lại; điều hướng dựa trên `history.pushState` để nút Back của Android hoạt động đúng.
-- Khi chuyển nền thì khoá sau 60 giây (chỉnh được trong cài đặt) và che nội dung (Android: hiện lớp phủ trắng khi `visibilitychange` để màn đa nhiệm không chụp lại secret; đã đo: lớp phủ không kịp với ảnh của màn đa nhiệm trên Android, xem giới hạn ở [04](04-security.md)).
+- Khi chuyển nền thì khoá sau 60 giây (chỉnh được trong cài đặt) và che nội dung (Android: hiện lớp phủ trắng khi `visibilitychange` để màn đa nhiệm không chụp lại secret; đã đo: lớp phủ không kịp với ảnh của màn đa nhiệm trên Android và iOS, xem giới hạn ở [04](04-security.md)).
 
 ### Thông báo và trạng thái
 

@@ -18,6 +18,11 @@
 <script type="module">
   import { runFiles } from 'node:test';
 
+  // Safari all but stops the timers of a hidden page (screen locked, window covered): the run looks hung.
+  const reportHidden = () => document.hidden && fetch('/hidden', { method: 'POST' });
+  reportHidden();
+  document.addEventListener('visibilitychange', reportHidden);
+
   const out = document.getElementById('out');
   const files = await (await fetch('/__tests')).json();
   const t0 = performance.now();

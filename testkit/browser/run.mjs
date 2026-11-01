@@ -33,6 +33,7 @@ async function listTests() {
   return names.map((n) => `/test/${n}`);
 }
 
+let pageWasHidden = false;
 let finish;
 const done = new Promise((r) => (finish = r));
 
@@ -42,6 +43,10 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/__tests') {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify(await listTests()));
+    }
+    if (req.method === 'POST' && url.pathname === '/hidden') {
+      pageWasHidden = true;
+      return res.writeHead(204).end();
     }
     if (req.method === 'POST' && url.pathname === '/result') {
       let body = '';
@@ -91,6 +96,7 @@ if (profile) await rm(profile, { recursive: true, force: true, maxRetries: 5, re
 
 if (!report) {
   console.log(`Timed out after ${TIMEOUT_MS / 1000} s waiting for ${pageUrl}`);
+  if (pageWasHidden) console.log('The page was hidden during the run, so its timers were held back. Unlock the screen, keep the window visible and run again.');
   process.exit(1);
 }
 
