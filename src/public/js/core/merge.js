@@ -167,8 +167,138 @@ function order(obj, keys) {
 
 // --- items ---------------------------------------------------------------------------------------
 
+// Single-valued item attributes merged with their own clock (FR06). fieldOrder is kept apart: it
+// follows the fields and never conflicts on its own (see mergeFieldOrder).
+const ITEM_ATTRS = ['type', 'title', 'notes', 'expires', 'favorite', 'forkedFrom'];
+const ITEM_KEYS = [
+  'id', 'type', 'title', 'fields', 'fieldOrder', 'notes', 'tags', 'favorite', 'expires', 'scopes', 'forkedFrom',
+  'clock', 'conflict', 'history', 'createdAt', 'updatedAt', 'rev', 'deletedAt', 'purgedAt',
+];
+
+const mapById = (list) => new Map(list.map((e) => [e.id, e]));
+// The part of a field that its at/dev clock covers (docs/03 §1).
+const fieldValue = (f) => ({ label: f.label, kind: f.kind, v: f.v, file: f.file, deletedAt: f.deletedAt });
+const fieldClock = (f) => ({ at: f.at, dev: f.dev });
+const sameSet = (a, b) => eq([...new Set(a)].sort(), [...new Set(b)].sort());
+
+// Conflicts found while merging one item: which values, which sides lost one, and their clocks.
+function conflictLog() {
+  return { attrs: [], fields: [], losers: new Set(), at: null };
+}
+
+function lost(log, m, list, name, cl, cr) {
+  list.push(name);
+  log.losers.add(m.side === 'l' ? 'r' : 'l');
+  const t = Math.max(clockOf(cl).at, clockOf(cr).at);
+  log.at = log.at === null ? t : Math.max(log.at, t);
+}
+
+// Set-valued attributes (FR08): one side's change is taken as is; both changed → three-way set, sorted.
+function mergeSet(b, l, r) {
+  const m = merge3(b, l, r);
+  if (!m.conflict) return [...m.value];
+  const B = new Set(b === ABSENT ? [] : b);
+  const L = new Set(l);
+  const R = new Set(r);
+  const keep = (x) => (L.has(x) && R.has(x)) || (L.has(x) && !B.has(x)) || (R.has(x) && !B.has(x));
+  return [...new Set([...l, ...r])].filter(keep).sort(cmp);
+}
+
+function mergeFields(b, l, r, log) {
+  const bf = b === ABSENT ? new Map() : mapById(b.fields);
+  const lf = mapById(l.fields);
+  const rf = mapById(r.fields);
+  const ids = mergeOrder(
+    b === ABSENT ? [] : b.fields.map((f) => f.id),
+    l.fields.map((f) => f.id),
+    r.fields.map((f) => f.id),
+  );
+  return ids.map((id) => {
+    const x = lf.get(id);
+    const y = rf.get(id);
+    if (x === undefined || y === undefined || eq(x, y)) return clone(x ?? y);
+    const base = bf.get(id);
+    const m = merge3(
+      base === undefined ? ABSENT : fieldValue(base),
+      fieldValue(x),
+      fieldValue(y),
+      base === undefined ? ABSENT : fieldClock(base),
+      fieldClock(x),
+      fieldClock(y),
+    );
+    if (m.conflict) lost(log, m, log.fields, id, x, y);
+    const { label, kind, v, file, deletedAt } = m.value;
+    const f = { id, label, kind, v };
+    if (file !== undefined) f.file = file;
+    return { ...f, at: m.clock.at, dev: m.clock.dev, deletedAt };
+  });
+}
+
+// fieldOrder: one side's change is taken as is. Both changed → the ids kept as a three-way set, in the
+// order of the side with the later clock, then the rest in the other side's order. Either way the
+// result is then fitted to the merged fields: deleted fields leave it, live fields missing join the end.
+function mergeFieldOrder(b, l, r, fields) {
+  const m = merge3(get(b, 'fieldOrder'), l.fieldOrder, r.fieldOrder, getClock(b, 'fieldOrder'), l.clock?.fieldOrder, r.clock?.fieldOrder);
+  let ids = m.value;
+  if (m.conflict) {
+    const set = new Set(mergeSet(get(b, 'fieldOrder'), l.fieldOrder, r.fieldOrder));
+    const [first, second] = m.side === 'l' ? [l.fieldOrder, r.fieldOrder] : [r.fieldOrder, l.fieldOrder];
+    ids = [...new Set([...first, ...second])].filter((id) => set.has(id));
+  }
+  const state = new Map(fields.map((f) => [f.id, f.deletedAt === null]));
+  const out = ids.filter((id) => state.get(id) !== false);
+  for (const f of fields) if (f.deletedAt === null && !out.includes(f.id)) out.push(f.id);
+  return { value: out, clock: m.clock };
+}
+
+// "Edited content" (FR13): any user-editable attribute differs from base; tags/scopes compare as sets.
+function editedContent(b, x) {
+  if (b === ABSENT) return true;
+  if ([...ITEM_ATTRS, 'fieldOrder'].some((k) => !eq(b[k], x[k]))) return true;
+  const bf = mapById(b.fields);
+  for (const f of x.fields) {
+    const o = bf.get(f.id);
+    if (o === undefined || !eq(fieldValue(o), fieldValue(f))) return true;
+  }
+  return !sameSet(b.tags, x.tags) || !sameSet(b.scopes, x.scopes);
+}
+
+// Attributes, fields and sets of a live item (FR04–FR08, FR15).
+function mergeContent(b, l, r, log) {
+  const out = { id: l.id, clock: {} };
+  for (const k of ITEM_ATTRS) {
+    const cl = l.clock?.[k];
+    const cr = r.clock?.[k];
+    const m = merge3(get(b, k), l[k], r[k], getClock(b, k), cl, cr);
+    out[k] = clone(m.value);
+    if (m.clock !== undefined && m.clock !== ABSENT) out.clock[k] = clone(m.clock);
+    if (m.conflict) lost(log, m, log.attrs, k, cl, cr);
+  }
+  out.fields = mergeFields(b, l, r, log);
+  const fo = mergeFieldOrder(b, l, r, out.fields);
+  out.fieldOrder = fo.value;
+  if (fo.clock !== undefined && fo.clock !== ABSENT) out.clock.fieldOrder = clone(fo.clock);
+  out.tags = mergeSet(get(b, 'tags'), l.tags, r.tags);
+  out.scopes = mergeSet(get(b, 'scopes'), l.scopes, r.scopes);
+  return out;
+}
+
 function mergeItem(b, l, r) {
-  throw new KeymeshError('unsupported', 'item');
+  const log = conflictLog();
+  const out = mergeContent(b, l, r, log);
+  for (const k of ['deletedAt', 'purgedAt']) {
+    const m = merge3(get(b, k), l[k], r[k], getClock(b, k), l.clock?.[k], r.clock?.[k]);
+    out[k] = m.value;
+    if (k === 'deletedAt' && m.clock !== undefined && m.clock !== ABSENT) out.clock.deletedAt = clone(m.clock);
+  }
+  const h = merge3(get(b, 'history'), l.history, r.history);
+  out.history = clone(h.value);
+  const c = merge3(get(b, 'conflict'), l.conflict, r.conflict);
+  out.conflict = clone(c.value);
+  if (log.losers.size > 0) {
+    out.conflict = { at: log.at, fields: [...log.fields].sort(cmp), attrs: [...log.attrs].sort(cmp) };
+  }
+  return setMeta(order(out, ITEM_KEYS), l, r);
 }
 
 // --- vault ---------------------------------------------------------------------------------------
