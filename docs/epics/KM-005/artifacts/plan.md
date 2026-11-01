@@ -63,7 +63,9 @@ Phương án bị loại thứ hai: **test gọi handler trực tiếp trên Nod
 | `docs/epics/KM-005/KM-005.md`, `KM-006/KM-006.md`, `KM-008/KM-008.md`, `KM-009/KM-009.md` | Sửa theo FR36 | AC58 |
 | `docs/epics/KM-005/artifacts/implement.md` | Mới ở bước implement: đầu ra test, số đo AC56 | AC56 |
 
-**Không đụng:** `src/public/**` (kể cả `core/`, `sw.js`, `_headers`), `testkit/vectors.js`, `testkit/serve.mjs`, `test/*.test.js`, `test/e2e/*`.
+**Không đụng:** `src/public/**` (kể cả `core/`, `sw.js`, `_headers`), `testkit/vectors.js`, `testkit/serve.mjs`, `test/*.test.js` (trừ amendment dưới), `test/e2e/*`.
+
+**Amendment 1 (bước implement, 2026-11-02):** `test/ui-static.test.js` có `KM-003 NFR06` đòi `devDependencies` rỗng, viết lúc "chưa có `wrangler`". Plan bỏ sót test này: NFR09 (thêm `wrangler`) và NFR10 (`npm test` xanh) không thể cùng đạt nếu không sửa nó. Sửa đúng một assert: `devDependencies` chỉ được có `wrangler`, ghim đúng phiên bản. Giữ nguyên ý của test và khớp `CLAUDE.md` ("ngoại lệ duy nhất: `wrangler`").
 
 ## 3. Order
 

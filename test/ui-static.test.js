@@ -61,7 +61,9 @@ test('KM-003 NFR04 NFR06 only relative imports with .js, nothing loaded from ano
 test('KM-003 NFR06 no third-party package', { skip }, async () => {
   const pkg = JSON.parse(await readRepoFile('package.json'));
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0);
-  assert.equal(Object.keys(pkg.devDependencies ?? {}).length, 0);
+  // The one exception of CLAUDE.md, from KM-005 on, pinned to an exact version (KM-005 NFR09).
+  assert.deepEqual(Object.keys(pkg.devDependencies ?? {}), ['wrangler']);
+  assert.match(pkg.devDependencies.wrangler, /^\d+\.\d+\.\d+$/);
 });
 
 test('KM-003 AC45 NFR01 the local server sends exactly the CSP of docs/04', { skip }, async () => {
