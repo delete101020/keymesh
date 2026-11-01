@@ -282,9 +282,11 @@ export function wrongDeletions(m, b, l, r) {
 
 const hex = (rnd, n) => Array.from({ length: n }, () => Math.floor(rnd() * 16).toString(16)).join('');
 
-// About 1 MB: 500 items × 8 fields × 20 history entries. 10% of the items are edited on both sides,
-// half of those on the same field (a real conflict), the other half on different fields.
-export function bigMergeCase(seed = 1) {
+// 500 items × 8 fields with `history` earlier saves each. 10% of the items are edited on both sides,
+// half of those on the same field (a real conflict), the other half on different fields. history = 0
+// gives about 1 MB; history = 20 (the shape spec NFR03 names) gives about 13 MB, since each history
+// entry copies every field.
+export function bigMergeCase({ history = 0, seed = 1 } = {}) {
   const rnd = prng(seed);
   return withSeededIds(rnd, () => {
     const vault = createVault(VID);
@@ -294,9 +296,9 @@ export function bigMergeCase(seed = 1) {
     const fields = Array.from({ length: 8 }, (_, i) => ({ label: `F${i}`, kind: 'secret', v: '' }));
     for (let n = 0; n < 500; n++) {
       const item = createItem(vault, 'db', { title: `Database ${n}`, scopes: [env.id], fields }, ctx(0));
-      for (let h = 0; h < 20; h++) {
-        const fs = item.fields.map((f) => ({ id: f.id, v: hex(rnd, 8) }));
-        updateItem(vault, item.id, { fields: fs, notes: hex(rnd, 8) }, ctx(1 + h));
+      for (let h = 0; h < history; h++) {
+        const fs = item.fields.map((f) => ({ id: f.id, v: hex(rnd, 12) }));
+        updateItem(vault, item.id, { fields: fs, notes: hex(rnd, 12) }, ctx(1 + h));
       }
     }
     const b = vault;
