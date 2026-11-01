@@ -53,7 +53,7 @@ function platformProblem() {
 export function createApp({ confirmDiscard = async () => true } = {}) {
   const listeners = new Set();
   const disposers = new Set();
-  const state = { screen: 'loading', errorDetail: null, ...emptyView() };
+  const state = { screen: 'loading', errorDetail: null, updateReady: false, ...emptyView() };
   let session = null;
   let releaseTab = null;
   let toastTimer = null;
@@ -220,6 +220,15 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
     createAccount: (password) => open(() => session.createAccount(password)),
     unlock: (password) => open(() => session.unlock(password)),
     lock,
+
+    // --- new version -----------------------------------------------------------------------------
+
+    updateReady() {
+      state.updateReady = true;
+      emit('update');
+    },
+    // Reloading locks the vault and loses the form, so unsaved edits ask first. True means go ahead.
+    leaveForUpdate: () => leaveDraft(),
 
     // --- navigation ------------------------------------------------------------------------------
 

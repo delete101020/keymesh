@@ -8,9 +8,11 @@ import { renderNav } from './nav.js';
 import { renderList } from './list.js';
 import { renderDetail, stopOtpTicks } from './detail.js';
 import { renderEdit } from './edit.js';
+import { registerPwa } from '../pwa.js';
 
 const root = document.getElementById('root');
 const toastEl = document.getElementById('toast');
+const updateEl = document.getElementById('update');
 
 const app = createApp({
   confirmDiscard: () => confirmDialog(app, { title: 'Bỏ bản nháp?', message: 'Những gì vừa sửa chưa được lưu sẽ mất.', confirmLabel: 'Bỏ bản nháp' }),
@@ -92,8 +94,20 @@ function showToast(toast) {
   }
 }
 
+const pwa = registerPwa({ onUpdateReady: () => app.updateReady() });
+
+function showUpdate() {
+  updateEl.hidden = !app.state.updateReady;
+  updateEl.replaceChildren(
+    h('span', { class: 'grow' }, 'Có phiên bản mới của KeyMesh.'),
+    h('button', { class: 'primary', on: { click: async () => {
+      if (await app.leaveForUpdate()) pwa.apply();
+    } } }, 'Tải lại'));
+}
+
 app.on((regions, payload) => {
   if (regions.includes('toast') && payload !== undefined) return showToast(payload);
+  if (regions.includes('update')) return showUpdate();
   if (regions.includes('screen')) return renderScreen();
   return drawRegions(regions);
 });
@@ -107,3 +121,4 @@ document.addEventListener('keydown', (e) => {
 
 app.bindActivity();
 app.boot();
+pwa.start();

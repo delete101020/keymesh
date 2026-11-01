@@ -43,8 +43,10 @@ export const headersFor = (pathname, rules = RULES) => {
 export const CSP = headersFor('/')['content-security-policy'];
 
 export async function startServer({ port = 0, root = ROOT } = {}) {
+  const seen = [];
   const server = createServer(async (req, res) => {
     const { pathname } = new URL(req.url, 'http://127.0.0.1');
+    seen.push(pathname);
     // Files without their own rule are not meant to be cached by anything but the Service Worker here,
     // so a test never reads a stale file.
     const headers = { 'cache-control': 'no-store', ...headersFor(pathname) };
@@ -61,7 +63,7 @@ export async function startServer({ port = 0, root = ROOT } = {}) {
     }
   });
   await new Promise((r) => server.listen(port, '127.0.0.1', r));
-  return { url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((r) => { server.closeAllConnections(); server.close(r); }) };
+  return { url: `http://127.0.0.1:${server.address().port}/`, seen, close: () => new Promise((r) => { server.closeAllConnections(); server.close(r); }) };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

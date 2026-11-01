@@ -320,13 +320,20 @@ test('KM-003 AC46 NFR02 NFR03 markers in every input: after locking, nothing rea
   assert.ok(!(await page.domDump()).includes(MARK), 'DOM');
   const stored = await page.eval(`(async () => {
     const db = ${READ_DB};
-    const caches_ = await caches.keys();
-    return { db: await db, local: JSON.stringify(localStorage), session: JSON.stringify(sessionStorage), caches: caches_ };
+    const names = await caches.keys();
+    const cached = [];
+    for (const n of names) {
+      for (const req of await (await caches.open(n)).keys()) cached.push(req.url + ' ' + (await (await (await caches.open(n)).match(req)).text()));
+    }
+    return { db: await db, local: JSON.stringify(localStorage), session: JSON.stringify(sessionStorage), names, cached };
   })()`);
   const flat = JSON.stringify(stored);
-  assert.ok(!flat.includes(MARK), 'IndexedDB, localStorage, sessionStorage');
+  assert.ok(!flat.includes(MARK), 'IndexedDB, localStorage, sessionStorage, content of every cache');
   assert.ok(!flat.includes(PASSWORD));
-  assert.deepEqual(stored.caches, []);
+  // KM-004: the Service Worker keeps exactly one cache, of the app's own files.
+  assert.equal(stored.names.length, 1);
+  assert.match(stored.names[0], /^keymesh-shell-[0-9a-f]{16}$/);
+  assert.ok(stored.cached.length > 0);
   assert.deepEqual(Object.keys(stored.db.account).sort(), ['deviceId', 'kdf', 'userId', 'username', 'wrappedAccountKey']);
   for (const line of [...page.console, ...page.errors, ...page.requests]) {
     assert.ok(!line.includes(MARK), `output: ${line.slice(0, 80)}`);
