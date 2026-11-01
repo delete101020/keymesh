@@ -12,6 +12,8 @@ import {
   newVaultId,
 } from '../src/public/js/core/crypto.js';
 import { bigVault, isNode } from '../testkit/helpers.js';
+import { merge } from '../src/public/js/core/merge.js';
+import { bigMergeCase } from '../testkit/merge-gen.js';
 
 // NFR06 thresholds apply on Node only (dev machine); the browser run just prints the numbers.
 const RUNS = 5;
@@ -55,4 +57,28 @@ test('AC23 NFR06 encrypting a 1 MB vault ≤ 200 ms median', async (t) => {
   const r = await median(() => encryptVault(vault, vaultKey));
   t.diagnostic(`AC23 encrypt 1 MB: median ${r.median.toFixed(1)} ms, runs ${r.times.join(', ')} ms`);
   if (isNode) assert.ok(r.median <= 200, `median ${r.median} ms > 200 ms`);
+});
+
+async function timeMerge(t, label, c) {
+  const size = JSON.stringify(c.l).length;
+  let m;
+  const res = await median(() => {
+    m = merge(c.b, c.l, c.r);
+  });
+  assert.equal(m.items.filter((x) => x.conflict !== null).length, 25, 'half of the 50 items edited on both sides conflict');
+  t.diagnostic(`AC27 merge ${label} (${(size / 1024 / 1024).toFixed(2)} MB): median ${res.median.toFixed(1)} ms, runs ${res.times.join(', ')} ms`);
+  return { size, median: res.median };
+}
+
+// NFR03 names both "~1 MB" and "500 items × 8 fields × 20 history"; the two do not fit together (each
+// history entry copies every field, so that shape is ~13 MB). The threshold is held on ~1 MB, the size
+// docs/01 gives for a vault; the 20-entry shape is measured and printed only.
+test('AC27 KM-002 NFR03 merging a ~1 MB vault (500 items × 8 fields, 10% edited on both sides) ≤ 200 ms median', async (t) => {
+  const { size, median: ms } = await timeMerge(t, '500 × 8, no earlier history', bigMergeCase());
+  assert.ok(size >= 0.9 * 1024 * 1024 && size <= 1.5 * 1024 * 1024, `vault is ${size} bytes`);
+  if (isNode) assert.ok(ms <= 200, `median ${ms} ms > 200 ms`);
+});
+
+test('AC27 KM-002 NFR03 (measured only) the 500 × 8 × 20-history shape', async (t) => {
+  await timeMerge(t, '500 × 8 × 20 history', bigMergeCase({ history: 20 }));
 });

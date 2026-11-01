@@ -35,7 +35,7 @@ Nguyên tắc: **mọi thao tác mã hoá và giải mã đều diễn ra trên 
 | **PWA UI** | Màn hình đăng nhập/mở khoá, điều hướng project/env, danh sách, chi tiết, sửa, cài đặt. Bố cục 3 cột trên desktop, xếp chồng trên mobile |
 | **crypto.js** | PBKDF2, HKDF, AES-GCM, bọc/mở `accountKey` và `vaultKey`, WebAuthn PRF |
 | **store.js** | Đọc và ghi IndexedDB: blob cục bộ và base **theo từng vault**, session token, `accountKey` đã bọc bằng passkey, cài đặt riêng từng thiết bị |
-| **merge.js** | Hàm thuần `merge(base, local, remote) → {result, conflicts}`, gộp **theo thuộc tính và theo field**, có unit test |
+| **merge.js** | Hàm thuần `merge(base, local, remote) → vault`, gộp **theo thuộc tính và theo field**; đánh dấu xung đột nằm ở `item.conflict`. Nằm trong lõi (`js/core/merge.js`), hợp đồng ở [09](09-core-api.md) |
 | **sync.js** | Pull/push với server cho từng vault, gom các thay đổi (debounce), thử lại khi mất mạng, hiển thị trạng thái đồng bộ |
 | **mirror.js** | Bản sao tự động chỉ ghi ra file qua File System Access API (chỉ Chromium); không bao giờ đọc file để sync |
 | **config.js** | Cấu hình theo domain (xem [Cấu hình theo domain](#cấu-hình-theo-domain)) |

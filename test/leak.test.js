@@ -19,6 +19,7 @@ import {
 import { createVault, createItem, updateItem, validateVault } from '../src/public/js/core/model.js';
 import { toHex, toBase64, utf8Encode, randomBytes } from '../src/public/js/core/bytes.js';
 import { ctx, flipB64 } from '../testkit/helpers.js';
+import { merge } from '../src/public/js/core/merge.js';
 
 const PW = 'PW-MARKER-7f3c9a correct horse';
 const PT = 'PT-MARKER-51b2e0';
@@ -117,4 +118,50 @@ test('AC22 NFR04 error messages, stacks and failed results carry no password, ke
   assert.equal(report.ok, false);
   const text = JSON.stringify(report);
   for (const secret of secrets) assert.ok(!text.includes(secret), 'validateVault leaked a value');
+});
+
+test('AC22 KM-002 NFR05 merge errors and console carry no vault value', () => {
+  const MARK = 'MERGE-MARKER-9d41c7';
+  const good = createVault(VID);
+  const item = createItem(good, 'login', { title: MARK, notes: MARK }, ctx());
+  updateItem(good, item.id, { fields: item.fields.map((f) => ({ id: f.id, v: `${MARK}-${f.label}` })) }, ctx());
+  const bad = (edit) => {
+    const v = structuredClone(good);
+    edit(v);
+    return v;
+  };
+  const inputs = [
+    [good, bad((v) => (v.items[0].type = MARK)), good],
+    [good, good, bad((v) => (v.v = MARK))],
+    [bad((v) => (v.items[0].fields[0].kind = MARK)), good, good],
+    [good, good, { ...structuredClone(good), vaultId: OTHER_VID }],
+    [good, bad((v) => (v.items[0].history = MARK)), good],
+    [good, MARK, good],
+  ];
+  const counts = Object.fromEntries(CONSOLE_METHODS.map((m) => [m, 0]));
+  const saved = CONSOLE_METHODS.map((m) => console[m]);
+  CONSOLE_METHODS.forEach((m) => (console[m] = () => counts[m]++));
+  const errors = [];
+  try {
+    for (const args of inputs) {
+      try {
+        merge(...args);
+        errors.push(null);
+      } catch (e) {
+        errors.push(e);
+      }
+    }
+    // A successful merge of marked content writes nothing to the console either.
+    merge(good, good, good);
+  } finally {
+    CONSOLE_METHODS.forEach((m, i) => (console[m] = saved[i]));
+  }
+  assert.deepEqual(Object.values(counts), CONSOLE_METHODS.map(() => 0), 'merge wrote to console');
+  for (const e of errors) {
+    assert.ok(e, 'every bad input throws');
+    assert.equal(e.name, 'KeymeshError');
+    assert.equal(e.code, 'invalid');
+    assert.equal('cause' in e, false);
+    for (const s of [e.message, e.stack, String(e), JSON.stringify(e)]) assert.ok(!s.includes(MARK), 'merge leaked a vault value');
+  }
 });

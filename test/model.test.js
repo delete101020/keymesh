@@ -371,7 +371,7 @@ test('FR22 every model operation takes time and deviceId from ctx; bad ctx is in
   assert.throws(() => updateItem(vault, item.id, { title: 'x' }), hasCode('invalid'));
 });
 
-const CORE_FILES = ['bytes.js', 'errors.js', 'crypto.js', 'model.js'];
+const CORE_FILES = ['bytes.js', 'errors.js', 'crypto.js', 'model.js', 'merge.js'];
 
 test('FR22 core sources use no storage, network, DOM or console, and import only within core/', async () => {
   for (const name of CORE_FILES) {
@@ -388,11 +388,12 @@ test('FR22 core sources use no storage, network, DOM or console, and import only
   }
 });
 
-test('FR23 docs/09-core-api.md names every public export of crypto.js and model.js', async () => {
+test('FR23 KM-002 AC28 docs/09-core-api.md names every public export of crypto.js, model.js and merge.js', async () => {
   const doc = await readRepoFile('docs/09-core-api.md');
   const modules = {
     'crypto.js': await import('../src/public/js/core/crypto.js'),
     'model.js': await import('../src/public/js/core/model.js'),
+    'merge.js': await import('../src/public/js/core/merge.js'),
   };
   for (const [file, mod] of Object.entries(modules)) {
     for (const name of Object.keys(mod)) {
