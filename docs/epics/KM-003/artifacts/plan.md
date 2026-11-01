@@ -219,3 +219,14 @@ Trước bước 1: tạo nhánh `feat/KM-003-app` từ `master`, và commit ri�
 - Không gộp trong app dù `merge.js` đã có; không gọi `navigator.storage.persist()` (Concern 16).
 - Không sửa `envvault.html` và `design/`; không sinh lại `testkit/vectors.js`.
 - Không thêm thay đổi lõi nào ngoài hai thay đổi đã nêu. Phát sinh thì ghi amendment vào plan kèm lý do.
+
+## 8. Amendments
+
+Ghi trong lúc implement (2026-11-01), mỗi mục kèm lý do.
+
+- **Điểm vào của trang là `js/ui/shell.js`, không phải `app.js`.** Chiều phụ thuộc là `ui/` → `app.js`, nên `app.js` không được import màn hình. `app.js` chỉ giữ trạng thái và hành động; `shell.js` dựng màn và lắng nghe. Không thêm file.
+- **Thêm `testkit/memory-store.mjs`.** `session.js` cần một store để test trên Node, nơi không có IndexedDB.
+- **Sửa `testkit/browser/node-test-shim.js` để tôn trọng `options.skip`.** `ui-static.test.js` đọc file bằng `node:fs` nên chỉ chạy trên Node; shim cũ bỏ qua `skip` nên báo đỏ giả trên trình duyệt.
+- **Thêm hộp xác nhận "Bỏ bản nháp?" khi rời form đang có thay đổi chưa lưu.** Spec không nói tới. Nếu không có, bấm nhầm một dòng trong danh sách là mất bản nháp âm thầm, đi ngược tinh thần FR23. Originator có thể bỏ khi review: chỉ cần `confirmDiscard` trả `true`.
+- **`saveItem` nhận thêm `before` và `changed` ngoài `reason`** (vẫn nội bộ). `restoreItemVersion` phải bỏ tombstone trước khi gọi, nên ảnh chụp "trước khi lưu" phải chụp sớm hơn, và việc field quay lại phải tính là có đổi.
+- **Bước 9–12 gộp một commit.** `detail.js` và `edit.js` import các dialog của bước 11, 12, nên tách ra sẽ có commit không chạy được.
