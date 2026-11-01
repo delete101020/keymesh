@@ -1,7 +1,11 @@
 // Three-way merge of two copies of one vault against their common base (docs/05-sync.md,
 // docs/09-core-api.md § merge.js). Pure: the result depends only on the three inputs.
 import { KeymeshError } from './errors.js';
-import { validateVault, VAULT_VERSION } from './model.js';
+import { validateVault, VAULT_VERSION, HISTORY_MAX } from './model.js';
+
+// `note` of a conflict history entry whose side moved the item to the trash while the other side
+// edited it (FR19). The UI turns it into "đã bị xoá ở thiết bị khác"; the wording is not data.
+export const DELETED_ELSEWHERE = 'deleted-elsewhere';
 
 const NO_CLOCK = Object.freeze({ at: 0, dev: '' });
 // Stands for "this entity or value is not in base" (two sides created the same id, FR15).
@@ -283,6 +287,61 @@ function mergeContent(b, l, r, log) {
   return out;
 }
 
+// --- history and conflict marks (FR09–FR11) --------------------------------------------------------
+
+const num = (v) => (Number.isFinite(v) ? v : 0);
+const historyKey = (h) => canon([h.at ?? null, h.rev ?? null, h.dev ?? null]);
+// Newest first by (at, rev, dev); a full tie falls back to the entry itself so the order is total.
+const newestFirst = (x, y) => cmp(num(y.at), num(x.at)) || cmp(num(y.rev), num(x.rev)) || cmp(String(y.dev), String(x.dev)) || cmp(canon(y), canon(x));
+
+// The pre-merge state of a side that lost at least one value. Its key comes from that side's own
+// rev and latest clock, so every device merging the same three copies writes the same entry.
+function conflictEntry(x, note) {
+  const c = latestClock(x);
+  const head = { at: c.at, rev: x.rev, dev: c.dev, reason: 'conflict' };
+  if (note) head.note = DELETED_ELSEWHERE;
+  return { ...head, title: x.title, type: x.type, fields: clone(x.fields), notes: x.notes, expires: x.expires, scopes: [...x.scopes] };
+}
+
+// Union by (at, rev, dev); same key with different content → the larger canon form. Entries written
+// by this merge are always kept; the rest fill up to HISTORY_MAX, newest first.
+function mergeHistory(b, l, r, added) {
+  if (added.length === 0) {
+    const m = merge3(get(b, 'history'), l.history, r.history);
+    if (!m.conflict) return clone(m.value);
+  }
+  const byKey = new Map();
+  for (const h of [...l.history, ...r.history, ...added]) {
+    const k = historyKey(h);
+    const o = byKey.get(k);
+    if (o === undefined || canon(h) > canon(o)) byKey.set(k, h);
+  }
+  const fresh = new Set(added.map(historyKey));
+  let room = HISTORY_MAX - fresh.size;
+  const all = [...byKey.values()].sort(newestFirst);
+  return clone(all.filter((h) => fresh.has(historyKey(h)) || room-- > 0));
+}
+
+const marks = (c, k) => (c === ABSENT ? ABSENT : Array.isArray(c?.[k]) ? c[k] : []);
+
+// Earlier marks merge as sets against base (so "Đã xử lý" on one side sticks), then this merge's
+// conflicts are added. conflict.at: the latest clock among this merge's conflicting values and the
+// `at` of each side whose marks survive. No marks → null.
+function mergeConflict(b, l, r, log) {
+  const bc = get(b, 'conflict');
+  const m = merge3(bc, l.conflict, r.conflict);
+  if (log.attrs.length === 0 && log.fields.length === 0 && !m.conflict) return clone(m.value);
+  const fields = new Set([...mergeSet(marks(bc, 'fields'), marks(l.conflict, 'fields'), marks(r.conflict, 'fields')), ...log.fields]);
+  const attrs = new Set([...mergeSet(marks(bc, 'attrs'), marks(l.conflict, 'attrs'), marks(r.conflict, 'attrs')), ...log.attrs]);
+  if (fields.size === 0 && attrs.size === 0) return null;
+  const ats = log.at === null ? [] : [log.at];
+  for (const x of [l, r]) {
+    const kept = marks(x.conflict, 'fields').some((id) => fields.has(id)) || marks(x.conflict, 'attrs').some((k) => attrs.has(k));
+    if (kept && Number.isFinite(x.conflict.at)) ats.push(x.conflict.at);
+  }
+  return { at: ats.length ? Math.max(...ats) : 0, fields: [...fields].sort(cmp), attrs: [...attrs].sort(cmp) };
+}
+
 function mergeItem(b, l, r) {
   const log = conflictLog();
   const out = mergeContent(b, l, r, log);
@@ -291,13 +350,9 @@ function mergeItem(b, l, r) {
     out[k] = m.value;
     if (k === 'deletedAt' && m.clock !== undefined && m.clock !== ABSENT) out.clock.deletedAt = clone(m.clock);
   }
-  const h = merge3(get(b, 'history'), l.history, r.history);
-  out.history = clone(h.value);
-  const c = merge3(get(b, 'conflict'), l.conflict, r.conflict);
-  out.conflict = clone(c.value);
-  if (log.losers.size > 0) {
-    out.conflict = { at: log.at, fields: [...log.fields].sort(cmp), attrs: [...log.attrs].sort(cmp) };
-  }
+  const added = [...log.losers].map((side) => conflictEntry(side === 'l' ? l : r, false));
+  out.history = mergeHistory(b, l, r, added);
+  out.conflict = mergeConflict(b, l, r, log);
   return setMeta(order(out, ITEM_KEYS), l, r);
 }
 

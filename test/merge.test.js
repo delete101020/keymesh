@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { merge } from '../src/public/js/core/merge.js';
+import { merge, DELETED_ELSEWHERE } from '../src/public/js/core/merge.js';
 import {
+  HISTORY_MAX,
   createVault,
   addProject,
   updateProject,
@@ -317,6 +318,9 @@ test('AC13 FR07 one side deletes a field, the other edits it later: the edit win
     assert.equal(f.v, 'https://new');
     assert.ok(x.fieldOrder.includes(f3), 'the field that came back is in fieldOrder');
     assert.deepEqual(x.conflict.fields, [f3]);
+    const lost = x.history.filter((h) => h.reason === 'conflict');
+    assert.equal(lost.length, 1);
+    assert.notEqual(byId(lost[0].fields, f3).deletedAt, null, 'history keeps the deleting side');
   }
 });
 
@@ -332,6 +336,9 @@ test('AC13 FR07 the deletion is later: the field stays deleted and is marked', (
     assert.equal(byId(x.fields, f3).deletedAt, T0 + 30000);
     assert.ok(!x.fieldOrder.includes(f3));
     assert.deepEqual(x.conflict.fields, [f3]);
+    const lost = x.history.filter((h) => h.reason === 'conflict');
+    assert.equal(lost.length, 1);
+    assert.equal(byId(lost[0].fields, f3).v, 'https://new', 'history keeps the edited value');
   }
 });
 
@@ -352,6 +359,7 @@ test('AC18 FR15 both sides created one id: same values are not conflicts, Passwo
     assert.deepEqual(x.conflict.fields, [item.fields[1].id]);
     assert.deepEqual(x.conflict.attrs, []);
     assert.deepEqual(x.tags, ['a', 'b']);
+    assert.ok(x.history.some((h) => h.reason === 'conflict' && h.fields[1].v === 'pw-laptop'));
     assert.deepEqual(validateVault(m), { ok: true });
   }
 });
@@ -385,4 +393,112 @@ test('AC16 FR17 FR18 deleting an env or project keeps every reference and adds n
     assert.ok(m.items.every((x) => x.conflict === null));
     assert.deepEqual(validateVault(m), { ok: true });
   }
+});
+
+// --- step 3: history and conflict marks -----------------------------------------------------------
+
+test('AC02 FR05 FR07 FR09 FR10 both change Password: remote (later) wins, one mark, local in history', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  updateItem(l, item.id, setField(item, 1, 'P-laptop'), at(10));
+  updateItem(r, item.id, setField(item, 1, 'P-phone'), at(20, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    assert.equal(m.items.length, 1);
+    const x = m.items[0];
+    assert.equal(pw(x).v, 'P-phone');
+    assert.deepEqual(pw(x), pw(r.items[0]), 'the winning field keeps its own clock');
+    assert.deepEqual(x.conflict, { at: T0 + 20000, fields: [item.fields[1].id], attrs: [] });
+    const lost = x.history.filter((h) => h.reason === 'conflict');
+    assert.equal(lost.length, 1);
+    assert.equal(lost[0].fields[1].v, 'P-laptop');
+    assert.deepEqual(
+      { at: lost[0].at, rev: lost[0].rev, dev: lost[0].dev },
+      { at: T0 + 10000, rev: 2, dev: DEV_A },
+      'key from the losing side: its latest clock and its rev',
+    );
+    assert.equal('note' in lost[0], false);
+    assert.equal(x.rev, 3);
+    assert.deepEqual(validateVault(m), { ok: true });
+  }
+  assert.deepEqual(merge(b, l, r), merge(b, r, l));
+});
+
+test('FR09 each side that loses a value goes to history (local wins notes, remote wins Password)', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  updateItem(l, item.id, { ...setField(item, 1, 'P-laptop'), notes: 'laptop notes' }, at(10));
+  updateItem(r, item.id, setField(item, 1, 'P-phone'), at(20, DEV_B));
+  updateItem(r, item.id, { notes: 'phone notes' }, at(21, DEV_B));
+  updateItem(l, item.id, { notes: 'laptop notes 2' }, at(30));
+  const x = merge(b, l, r).items[0];
+  assert.equal(pw(x).v, 'P-phone');
+  assert.equal(x.notes, 'laptop notes 2');
+  assert.deepEqual(x.conflict.fields, [item.fields[1].id]);
+  assert.deepEqual(x.conflict.attrs, ['notes']);
+  const lost = x.history.filter((h) => h.reason === 'conflict');
+  assert.deepEqual(lost.map((h) => h.dev).sort(), [DEV_A, DEV_B]);
+  assert.equal(x.conflict.at, T0 + 30000);
+});
+
+test('AC19 FR10 "Đã xử lý" on one side clears the old mark; a new conflict still marks', () => {
+  const { vault: b0, item } = fixture();
+  const l0 = fork(b0);
+  const r0 = fork(b0);
+  updateItem(l0, item.id, setField(item, 1, 'P-laptop'), at(10));
+  updateItem(r0, item.id, setField(item, 1, 'P-phone'), at(20, DEV_B));
+  const b = merge(b0, l0, r0);
+  assert.deepEqual(b.items[0].conflict.fields, [item.fields[1].id]);
+
+  const l = fork(b);
+  const r = fork(b);
+  l.items[0].conflict = null; // the user pressed "Đã xử lý" on the laptop
+  assert.equal(merge(b, l, r).items[0].conflict, null);
+  assert.equal(merge(b, r, l).items[0].conflict, null);
+
+  updateItem(l, item.id, { notes: 'laptop' }, at(40));
+  updateItem(r, item.id, { notes: 'phone' }, at(50, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    assert.deepEqual(m.items[0].conflict, { at: T0 + 50000, fields: [], attrs: ['notes'] });
+  }
+});
+
+test('AC20 FR11 a full remote history does not push out the entry this merge writes', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  updateItem(l, item.id, setField(item, 1, 'P-laptop'), at(5));
+  for (let n = 0; n < HISTORY_MAX + 3; n++) updateItem(r, item.id, { title: `phone ${n}` }, at(100 + n, DEV_B));
+  updateItem(r, item.id, setField(item, 1, 'P-phone'), at(200, DEV_B));
+  assert.equal(r.items[0].history.length, HISTORY_MAX);
+  assert.ok(r.items[0].history.every((h) => h.at > T0 + 5000), 'every remote entry is newer than any local one');
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.equal(x.history.length, HISTORY_MAX);
+    const lost = x.history.filter((h) => h.reason === 'conflict');
+    assert.equal(lost.length, 1);
+    assert.equal(lost[0].fields[1].v, 'P-laptop');
+    assert.deepEqual(validateVault(m), { ok: true });
+  }
+});
+
+test('AC25 FR09 FR11 NFR04 merging two devices\' results of the same merge changes nothing', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  updateItem(l, item.id, { ...setField(item, 1, 'P-laptop'), title: 'laptop title' }, at(10));
+  updateItem(r, item.id, { ...setField(item, 1, 'P-phone'), title: 'phone title' }, at(20, DEV_B));
+  const m1 = merge(b, l, r);
+  const m2 = merge(b, r, l);
+  for (const m of [merge(b, m1, m2), merge(m1, m1, m2), merge(b, m2, m1)]) {
+    assert.deepEqual(m, m1);
+    const keys = m.items[0].history.map((h) => `${h.at}|${h.rev}|${h.dev}`);
+    assert.equal(new Set(keys).size, keys.length, 'no history entry twice');
+  }
+  // Merging again against an older base, after one more edit on top, adds no second conflict entry.
+  const l2 = fork(m1);
+  updateItem(l2, item.id, { notes: 'later' }, at(30));
+  const again = merge(b, l2, m2).items[0];
+  assert.equal(again.history.filter((h) => h.reason === 'conflict').length, 1);
 });
