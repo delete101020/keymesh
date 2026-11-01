@@ -39,7 +39,20 @@ export function replaceRegion(region, children) {
   const top = region.scrollTop;
   region.replaceChildren(...[children].flat(Infinity).filter(Boolean));
   region.scrollTop = top;
-  if (key) region.querySelector(`[data-fk="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
+  if (!key) return;
+  const target = region.querySelector(`[data-fk="${CSS.escape(key)}"]`);
+  // A move button at the end of the list comes back disabled and cannot hold focus.
+  const next = target?.disabled ? nearestEnabled(target) ?? region.querySelector(FOCUSABLE) : target;
+  next?.focus({ preventScroll: true });
+}
+
+const FOCUSABLE = 'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)';
+
+function nearestEnabled(el) {
+  for (const dir of ['nextElementSibling', 'previousElementSibling']) {
+    for (let x = el[dir]; x; x = x[dir]) if (x.matches(FOCUSABLE)) return x;
+  }
+  return null;
 }
 
 export function focusKey(key) {
