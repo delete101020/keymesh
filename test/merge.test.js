@@ -502,3 +502,212 @@ test('AC25 FR09 FR11 NFR04 merging two devices\' results of the same merge chang
   const again = merge(b, l2, m2).items[0];
   assert.equal(again.history.filter((h) => h.reason === 'conflict').length, 1);
 });
+
+// --- step 4: trash, restore, purge (docs/05 "Xoá, thùng rác và sửa", one test per row) --------------
+
+// base where the item is already in the trash on both sides, with an edit in its history.
+function trashedFixture() {
+  const f = fixture();
+  updateItem(f.vault, f.item.id, setField(f.item, 1, 'P-before'), at(1));
+  const before = structuredClone(f.vault.items[0]);
+  trashItem(f.vault, f.item.id, at(2));
+  return { ...f, before };
+}
+
+const TOMBSTONE_BLANK = { title: '', fields: [], fieldOrder: [], notes: '', history: [], tags: [], scopes: [], favorite: false, expires: null, forkedFrom: null, conflict: null };
+
+test('05-del-row-1 AC06 FR13 one side trashes, the other edits nothing: the item goes to the trash', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  trashItem(l, item.id, at(10));
+  updateEnv(r, b.envs[0].id, { name: 'renamed' }, at(20, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    assert.deepEqual(m.items[0], l.items[0]);
+    assert.equal(m.items[0].deletedAt, T0 + 10000);
+    assert.equal(m.items[0].conflict, null);
+  }
+});
+
+test('05-del-row-2 AC07 FR13 FR19 one side trashes, the other edits title, favorite or tags: the edit wins', () => {
+  const edits = [{ title: 'Partner X v2' }, { favorite: true }, { tags: ['partner-x', 'new-tag'] }];
+  for (const edit of edits) {
+    const { vault: b, item } = fixture();
+    const l = fork(b);
+    const r = fork(b);
+    trashItem(l, item.id, at(30));
+    updateItem(r, item.id, edit, at(20, DEV_B));
+    for (const m of [merge(b, l, r), merge(b, r, l)]) {
+      const x = m.items[0];
+      const [k, v] = Object.entries(edit)[0];
+      assert.equal(x.deletedAt, null, k);
+      assert.deepEqual(x[k], v);
+      assert.deepEqual(x.conflict, { at: T0 + 30000, fields: [], attrs: ['deletedAt'] });
+      const lost = x.history.filter((h) => h.reason === 'conflict');
+      assert.equal(lost.length, 1, k);
+      assert.equal(lost[0].note, DELETED_ELSEWHERE);
+      assert.equal(lost[0].dev, DEV_A, 'the entry is the trashing side');
+      assert.deepEqual(validateVault(m), { ok: true });
+    }
+    assert.deepEqual(merge(b, l, r), merge(b, r, l));
+  }
+});
+
+test('05-del-row-3 AC08 FR13 both trash at different times: the earlier deletedAt and its clock', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  trashItem(l, item.id, at(30));
+  trashItem(r, item.id, at(10, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.equal(x.deletedAt, T0 + 10000);
+    assert.deepEqual(x.clock.deletedAt, { at: T0 + 10000, dev: DEV_B });
+    assert.equal(x.conflict, null);
+  }
+});
+
+test('05-del-row-4 AC05 AC09 FR13 one side restores, the other leaves it in the trash: it comes back whole', () => {
+  const { vault: b, item, before } = trashedFixture();
+  const l = fork(b);
+  const r = fork(b);
+  restoreItem(l, item.id, at(10));
+  updateEnv(r, b.envs[0].id, { name: 'renamed' }, at(20, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.equal(x.deletedAt, null);
+    assert.deepEqual(x.fields, before.fields);
+    assert.deepEqual(x.history, before.history);
+    assert.equal(x.conflict, null);
+  }
+});
+
+test('05-del-row-5 AC10 FR14 one side purges, the other changes nothing: the purge tombstone', () => {
+  const { vault: b, item } = trashedFixture();
+  const l = fork(b);
+  const r = fork(b);
+  purgeItem(l, item.id, at(10));
+  updateEnv(r, b.envs[0].id, { name: 'renamed' }, at(20, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.deepEqual(x, l.items[0]);
+    assert.deepEqual({ ...x, ...TOMBSTONE_BLANK }, x, 'all content blank (09 § Purge)');
+    assert.equal(x.purgedAt, T0 + 10000);
+    assert.equal(x.deletedAt, T0 + 2000);
+  }
+});
+
+test('05-del-row-6 AC11 FR14 one side purges, the other edits Password: the edit brings it back', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  purgeItem(l, item.id, at(30));
+  updateItem(r, item.id, setField(item, 1, 'P-phone'), at(20, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    const ri = r.items[0];
+    assert.equal(x.purgedAt, null);
+    assert.equal(x.deletedAt, null);
+    assert.deepEqual(x.fields, ri.fields);
+    assert.deepEqual(x.history, ri.history, 'the purged side writes no history entry');
+    assert.deepEqual(x.conflict, { at: T0 + 30000, fields: [], attrs: ['purgedAt'] });
+    assert.deepEqual(validateVault(m), { ok: true });
+  }
+});
+
+test('05-del-row-7 AC13 FR07 FR09 field deleted on one side, edited on the other: the later clock wins', () => {
+  const { vault: b, item } = fixture();
+  const f3 = item.fields[2].id;
+  for (const [delAt, editAt, alive] of [[10, 20, true], [30, 20, false]]) {
+    const l = fork(b);
+    const r = fork(b);
+    updateItem(l, item.id, dropField(item, f3), at(delAt));
+    updateItem(r, item.id, setField(item, 2, 'https://new'), at(editAt, DEV_B));
+    const x = merge(b, l, r).items[0];
+    assert.equal(byId(x.fields, f3).deletedAt === null, alive);
+    assert.deepEqual(x.conflict.fields, [f3]);
+    assert.equal(x.history.filter((h) => h.reason === 'conflict').length, 1);
+  }
+});
+
+test('AC12 FR14 purge on one side, restore on the other: the restore wins and is marked', () => {
+  const { vault: b, item, before } = trashedFixture();
+  const l = fork(b);
+  const r = fork(b);
+  purgeItem(l, item.id, at(30));
+  restoreItem(r, item.id, at(20, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.equal(x.purgedAt, null);
+    assert.equal(x.deletedAt, null);
+    assert.deepEqual(x.fields, before.fields);
+    assert.deepEqual(x.conflict.attrs, ['purgedAt']);
+  }
+});
+
+test('FR14 both purge: one tombstone with the earlier deletedAt and purgedAt', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  purgeItem(l, item.id, at(30));
+  trashItem(r, item.id, at(10, DEV_B));
+  purgeItem(r, item.id, at(40, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.equal(x.deletedAt, T0 + 10000);
+    assert.equal(x.purgedAt, T0 + 30000);
+    assert.deepEqual(x.clock.deletedAt, { at: T0 + 10000, dev: DEV_B });
+    assert.deepEqual({ ...x, ...TOMBSTONE_BLANK }, x);
+  }
+});
+
+test('FR14 purge on one side, trash on the other (no edit): tombstone with the earlier deletedAt', () => {
+  const { vault: b, item } = fixture();
+  const l = fork(b);
+  const r = fork(b);
+  purgeItem(l, item.id, at(30));
+  trashItem(r, item.id, at(10, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.equal(x.purgedAt, T0 + 30000);
+    assert.equal(x.deletedAt, T0 + 10000);
+    assert.equal(x.conflict, null);
+  }
+});
+
+test('FR13 restore against restore-then-trash: the clock decides and deletedAt is marked', () => {
+  const { vault: b, item } = trashedFixture();
+  const l = fork(b);
+  const r = fork(b);
+  restoreItem(l, item.id, at(10));
+  restoreItem(r, item.id, at(11, DEV_B));
+  trashItem(r, item.id, at(12, DEV_B));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.equal(x.deletedAt, T0 + 12000);
+    assert.deepEqual(x.conflict.attrs, ['deletedAt']);
+  }
+  // The restoring side also edited: the edit beats the second trashing, whatever the clocks.
+  updateItem(l, item.id, { title: 'edited after restore' }, at(5));
+  for (const m of [merge(b, l, r), merge(b, r, l)]) {
+    const x = m.items[0];
+    assert.equal(x.deletedAt, null);
+    assert.equal(x.title, 'edited after restore');
+    const lost = x.history.filter((h) => h.reason === 'conflict');
+    assert.equal(lost.length, 1);
+    assert.equal(lost[0].note, DELETED_ELSEWHERE);
+  }
+});
+
+test('FR13 FR12 metadata: a save that only changes tags, or a purge of a trashed item, keeps that side', () => {
+  const { vault: b, item } = trashedFixture();
+  const l = fork(b);
+  purgeItem(l, item.id, at(10)); // touches rev and updatedAt but writes no clock
+  assert.deepEqual(merge(b, l, b), l);
+  const { vault: b2, item: i2, crm } = fixture();
+  const r2 = fork(b2);
+  updateItem(r2, i2.id, { tags: ['other'] }, at(10, DEV_B));
+  deleteProject(r2, crm.id, at(11, DEV_B)); // touches the env under it with no clock
+  assert.deepEqual(merge(b2, b2, r2), r2);
+  assert.deepEqual(merge(b2, r2, r2), r2);
+});

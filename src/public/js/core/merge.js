@@ -190,11 +190,15 @@ function conflictLog() {
   return { attrs: [], fields: [], losers: new Set(), at: null };
 }
 
-function lost(log, m, list, name, cl, cr) {
+// Record a conflict on `name`; `loser` ('l', 'r' or null) goes to history; `at` feeds conflict.at.
+function mark(log, list, name, loser, at) {
   list.push(name);
-  log.losers.add(m.side === 'l' ? 'r' : 'l');
-  const t = Math.max(clockOf(cl).at, clockOf(cr).at);
-  log.at = log.at === null ? t : Math.max(log.at, t);
+  if (loser !== null) log.losers.add(loser);
+  log.at = log.at === null ? at : Math.max(log.at, at);
+}
+
+function lost(log, m, list, name, cl, cr) {
+  mark(log, list, name, m.side === 'l' ? 'r' : 'l', Math.max(clockOf(cl).at, clockOf(cr).at));
 }
 
 // Set-valued attributes (FR08): one side's change is taken as is; both changed → three-way set, sorted.
@@ -342,18 +346,99 @@ function mergeConflict(b, l, r, log) {
   return { at: ats.length ? Math.max(...ats) : 0, fields: [...fields].sort(cmp), attrs: [...attrs].sort(cmp) };
 }
 
-function mergeItem(b, l, r) {
+// deletedAt of a live (not purged) item, per the trash table of docs/05 (FR13). Returns
+// { value, clock, noteSide }: noteSide is the side whose trashing lost to an edit on the other side.
+function mergeDeletedAt(b, l, r, log) {
+  const cl = l.clock?.deletedAt;
+  const cr = r.clock?.deletedAt;
+  const m = merge3(b === ABSENT ? null : b.deletedAt, l.deletedAt, r.deletedAt, getClock(b, 'deletedAt'), cl, cr);
+  const side = (s) => (s === 'l' ? l : r);
+  const other = (s) => (s === 'l' ? 'r' : 'l');
+  const at = Math.max(clockOf(cl).at, clockOf(cr).at);
+  if (!m.conflict) {
+    // Only one side moved it. Trashing loses to an edit of the content on the other side.
+    if (m.side !== null && m.value !== null && editedContent(b, side(other(m.side)))) {
+      const keep = side(other(m.side));
+      mark(log, log.attrs, 'deletedAt', m.side, at);
+      return { value: keep.deletedAt, clock: keep.clock?.deletedAt, noteSide: m.side };
+    }
+    return { value: m.value, clock: m.clock, noteSide: null };
+  }
+  // Both trashed at different times: the earlier one, so the 30 days count from the first deletion.
+  if (l.deletedAt !== null && r.deletedAt !== null) {
+    const s = l.deletedAt < r.deletedAt ? 'l' : 'r';
+    return { value: side(s).deletedAt, clock: side(s).clock?.deletedAt, noteSide: null };
+  }
+  // One restored, the other restored and trashed again: the clock decides, unless the restoring
+  // side edited the content, which always beats trashing.
+  let win = m.side;
+  if (m.value !== null && editedContent(b, side(other(win)))) win = other(win);
+  const lose = other(win);
+  mark(log, log.attrs, 'deletedAt', lose, at);
+  const trashLost = side(lose).deletedAt !== null && side(win).deletedAt === null;
+  return { value: side(win).deletedAt, clock: side(win).clock?.deletedAt, noteSide: trashLost ? lose : null };
+}
+
+function setClock(out, k, c) {
+  if (c !== undefined && c !== ABSENT) out.clock[k] = clone(c);
+  else delete out.clock[k];
+}
+
+// Neither side purged the item.
+function mergeLive(b, l, r) {
   const log = conflictLog();
   const out = mergeContent(b, l, r, log);
-  for (const k of ['deletedAt', 'purgedAt']) {
-    const m = merge3(get(b, k), l[k], r[k], getClock(b, k), l.clock?.[k], r.clock?.[k]);
-    out[k] = m.value;
-    if (k === 'deletedAt' && m.clock !== undefined && m.clock !== ABSENT) out.clock.deletedAt = clone(m.clock);
-  }
-  const added = [...log.losers].map((side) => conflictEntry(side === 'l' ? l : r, false));
+  const del = mergeDeletedAt(b, l, r, log);
+  out.deletedAt = del.value;
+  setClock(out, 'deletedAt', del.clock);
+  out.purgedAt = null;
+  const added = [...log.losers].map((s) => conflictEntry(s === 'l' ? l : r, s === del.noteSide));
   out.history = mergeHistory(b, l, r, added);
   out.conflict = mergeConflict(b, l, r, log);
   return setMeta(order(out, ITEM_KEYS), l, r);
+}
+
+// Exactly one side purged it (FR14). An edit or a restore on the other side brings the item back with
+// that side's content; the purged side has no content left, so it writes no history entry.
+function mergePurge(b, p, o, l, r) {
+  const restored = b !== ABSENT && b.deletedAt !== null && o.deletedAt === null;
+  if (editedContent(b, o) || restored) {
+    const out = clone(o);
+    out.purgedAt = null;
+    const log = conflictLog();
+    mark(log, log.attrs, 'purgedAt', null, p.purgedAt);
+    out.conflict = mergeConflict(b, l, r, log);
+    return setMeta(order(out, ITEM_KEYS), l, r);
+  }
+  const out = clone(p);
+  if (o.deletedAt !== null && o.deletedAt < p.deletedAt) {
+    out.deletedAt = o.deletedAt;
+    setClock(out, 'deletedAt', o.clock?.deletedAt);
+  }
+  return setMeta(order(out, ITEM_KEYS), l, r);
+}
+
+// Both purged: tombstones carry no content, so no history and no marks; the earlier times are kept.
+function mergeTombstones(b, l, r) {
+  const out = mergeContent(b, l, r, conflictLog());
+  const minTime = (x, y) => (x === null ? y : y === null ? x : Math.min(x, y));
+  const first = l.deletedAt === r.deletedAt ? null : minTime(l.deletedAt, r.deletedAt) === l.deletedAt ? l : r;
+  out.deletedAt = minTime(l.deletedAt, r.deletedAt);
+  const c = first === null ? merge3(get(b, 'deletedAt'), l.deletedAt, r.deletedAt, getClock(b, 'deletedAt'), l.clock?.deletedAt, r.clock?.deletedAt).clock : first.clock?.deletedAt;
+  setClock(out, 'deletedAt', c);
+  out.purgedAt = minTime(l.purgedAt, r.purgedAt);
+  out.history = [];
+  out.conflict = null;
+  return setMeta(order(out, ITEM_KEYS), l, r);
+}
+
+function mergeItem(b, l, r) {
+  const lp = l.purgedAt !== null;
+  const rp = r.purgedAt !== null;
+  if (lp && rp) return mergeTombstones(b, l, r);
+  if (lp) return mergePurge(b, l, r, l, r);
+  if (rp) return mergePurge(b, r, l, l, r);
+  return mergeLive(b, l, r);
 }
 
 // --- vault ---------------------------------------------------------------------------------------
