@@ -53,8 +53,8 @@ export const byteForms = (bytes) => [b64(bytes), Buffer.from(b64(bytes)).toStrin
 const remember = (needles, json) => {
   if (json === null || typeof json !== 'object') return;
   for (const [key, value] of Object.entries(json)) {
-    if (typeof value === 'string' && ['token', 'authKey', 'registrationToken'].includes(key)) needles.add(value);
-    else if (key === 'ct' && typeof value === 'string' && value.length >= 24) needles.add(value);
+    // Short values are tests' throwaway input ('wrong', ''), not secrets, and would match by chance.
+    if (typeof value === 'string' && value.length >= 24 && ['token', 'authKey', 'registrationToken', 'ct'].includes(key)) needles.add(value);
     else remember(needles, value);
   }
 };
@@ -81,12 +81,22 @@ export async function startServer(vars = {}) {
   const child = spawn(
     WRANGLER,
     ['pages', 'dev', 'public', '--ip', '127.0.0.1', '--port', String(port), '--persist-to', dataDir, '--d1', `DB=${DB_ID}`, '--inspector-port', String(await freePort()), ...flags],
-    { cwd: SRC, env, stdio: ['ignore', 'pipe', 'pipe'] },
+    { cwd: SRC, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true },
   );
   let output = '';
   child.stdout.on('data', (chunk) => (output += chunk));
   child.stderr.on('data', (chunk) => (output += chunk));
   const exited = new Promise((resolve) => child.on('exit', resolve));
+  // A failed test must not keep the runner alive on a server it never reached stop() for.
+  child.unref();
+  child.stdout.unref();
+  child.stderr.unref();
+  const killOnExit = () => {
+    try {
+      process.kill(-child.pid, 'SIGKILL');
+    } catch {}
+  };
+  process.once('exit', killOnExit);
 
   const deadline = Date.now() + 60_000;
   for (;;) {
@@ -146,8 +156,18 @@ export async function startServer(vars = {}) {
 
     // Every log of this server, scanned at stop: a leak fails the test file that caused it (AC52).
     async stop() {
-      child.kill('SIGTERM');
+      // Its own process group: wrangler sits on a wrapper and workerd, and does not always honour SIGTERM.
+      const signal = (name) => {
+        try {
+          process.kill(-child.pid, name);
+        } catch {}
+      };
+      signal('SIGTERM');
+      const force = setTimeout(() => signal('SIGKILL'), 3000);
       await exited;
+      clearTimeout(force);
+      signal('SIGKILL');
+      process.off('exit', killOnExit);
       let logs = output;
       for (const name of await readdir(logPath).catch(() => [])) logs += await readFile(join(logPath, name), 'utf8');
       await rm(root, { recursive: true, force: true, maxRetries: 3 });
