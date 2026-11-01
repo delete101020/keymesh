@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { createServer as createHttpServer } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -130,8 +131,8 @@ export async function startServer(vars = {}) {
     sql: (query, ...params) => withDb((db) => db.prepare(query).all(...params)),
     exec: (query) => withDb((db) => db.exec(query)),
 
-    // `ip` becomes CF-Connecting-IP. Without it local wrangler reports 127.0.0.1.
-    async call(method, path, { token, json, raw, headers = {}, origin, ip } = {}) {
+    // `ip` becomes CF-Connecting-IP. Without it local wrangler reports 127.0.0.1. `via` is a startEdge() url.
+    async call(method, path, { token, json, raw, headers = {}, origin, ip, via = url } = {}) {
       const sent = { ...headers };
       if (token !== undefined) sent.Authorization = `Bearer ${token}`;
       if (origin !== undefined) sent.Origin = origin;
@@ -144,7 +145,7 @@ export async function startServer(vars = {}) {
       }
       const init = { method, headers: sent, body, redirect: 'manual' };
       if (body instanceof ReadableStream) init.duplex = 'half';
-      const response = await fetch(`${url}${path}`, init);
+      const response = await fetch(`${via}${path}`, init);
       const text = await response.text();
       let parsed = null;
       try {
@@ -177,6 +178,36 @@ export async function startServer(vars = {}) {
     },
   };
   return server;
+}
+
+// A stand-in for what Cloudflare is documented to do: overwrite CF-Connecting-IP with the address it saw.
+// It shows how the server behaves given that overwrite, not that Cloudflare does it (AC25, see KM-006).
+export async function startEdge(server, realIp) {
+  const edge = createHttpServer(async (request, response) => {
+    try {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const headers = { ...request.headers, 'cf-connecting-ip': realIp };
+      for (const name of ['host', 'connection', 'content-length']) delete headers[name];
+      const upstream = await fetch(`${server.url}${request.url}`, { method: request.method, headers, body: chunks.length ? Buffer.concat(chunks) : undefined, redirect: 'manual' });
+      // fetch has already decoded the body, so these two no longer describe it.
+      const sent = new Headers(upstream.headers);
+      sent.delete('content-encoding');
+      sent.delete('content-length');
+      response.writeHead(upstream.status, Object.fromEntries(sent));
+      response.end(Buffer.from(await upstream.arrayBuffer()));
+    } catch {
+      response.writeHead(502).end();
+    }
+  });
+  await new Promise((resolve) => edge.listen(0, '127.0.0.1', resolve));
+  return {
+    url: `http://127.0.0.1:${edge.address().port}`,
+    stop: () => {
+      edge.closeAllConnections();
+      return new Promise((resolve) => edge.close(resolve));
+    },
+  };
 }
 
 // --- request bodies ----------------------------------------------------------------------------------

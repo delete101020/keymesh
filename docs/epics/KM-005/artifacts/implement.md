@@ -25,6 +25,7 @@ Run này không chạy theo batch (recipe `native-full`): cả plan làm trong m
 | Batch | Plan steps | Commits | Tests run | State |
 |---|---|---|---|---|
 | 1 | 1–9 | `813156a`…`c67183c` (cộng commit `implement.md`) | `npm run test:server` 70/70; `npm test` 223 pass, 5 skip, 0 fail; `npm run test:browser` 216/216; `npm run test:e2e` 89/89; `npm run vectors` | done |
+| 2 (originator yêu cầu sau báo cáo) | Amendment 1 chốt, Amendment 2 | hai commit sau `64aa99b` | `npm run test:server` 72/72; `npm test` 223 pass, 5 skip, 0 fail; `npm run vectors`. Không chạy lại `test:browser`, `test:e2e` (không đổi `src/public`, `test/e2e`) và lần chạy clone sạch của AC54 (vẫn là số 70/70 của batch 1) | done |
 
 ## 3. What was built
 
@@ -227,11 +228,13 @@ $ node --test --test-name-pattern="AC24" test/server/*.server.js   # trích từ
 
 ### `KM-005-AC25`
 
-**Một phần, theo Concern 4.** Bằng chứng cục bộ: đổi `X-Forwarded-For`, `X-Real-IP`, `True-Client-IP`, `Forwarded` mỗi lần vẫn bị khoá. Local tin `CF-Connecting-IP` do client đặt nên phần đó chưa chứng minh được; đã chuyển vào `KM-006.md`.
+**Vẫn một phần, theo Concern 4.** Bằng chứng cục bộ: đổi `X-Forwarded-For`, `X-Real-IP`, `True-Client-IP`, `X-Client-IP`, `CF-Connecting-IPv6`, `CF-Pseudo-IPv4`, `Forwarded` mỗi lần vẫn bị khoá. Qua proxy mô phỏng ghi đè `CF-Connecting-IP` (Amendment 2), giá trị giả không có tác dụng và lần sai được tính theo IP thật. Khi gọi thẳng, server tin header này: test `(boundary)` ghim điều đó. Cloudflare có ghi đè thật không thì chưa kiểm; quy trình kiểm nằm trong `KM-006.md`.
 
 ```
 $ node --test --test-name-pattern="AC25" test/server/*.server.js   # trích từ npm run test:server
-✔ KM-005 AC25 (local half) forwarding headers a client sets are not the address (74.830667ms)
+✔ KM-005 AC25 (local half) forwarding headers a client sets are not the address (1946.211916ms)
+✔ KM-005 AC25 (simulated edge) a spoofed CF-Connecting-IP that gets overwritten changes nothing: locked by the real address (109.846709ms)
+✔ KM-005 AC25 (boundary) reached without an edge, a changing CF-Connecting-IP is believed and never locks (81.181083ms)
 ```
 
 ### `KM-005-AC26`
@@ -541,11 +544,12 @@ $ node --test --test-name-pattern="AC59" test/server/*.server.js   # trích từ
 
 > *Anything done differently, and why. If nothing, say so explicitly.*
 
-1. **Amendment 1, sửa `test/ui-static.test.js`**, trong khi plan ghi không đụng `test/*.test.js`. `KM-003 NFR06` đòi `devDependencies` rỗng, nên NFR09 và NFR10 không thể cùng đạt. Assert mới: chỉ có `wrangler`, ghim đúng phiên bản. Đã ghi trong `plan.md` §2. **Người duyệt nên xác nhận thay đổi này.**
+1. **Amendment 1, sửa `test/ui-static.test.js`**, trong khi plan ghi không đụng `test/*.test.js`. `KM-003 NFR06` đòi `devDependencies` rỗng, nên NFR09 và NFR10 không thể cùng đạt. Assert mới: chỉ có `wrangler`, ghim đúng phiên bản. Đã ghi trong `plan.md` §2. Originator yêu cầu chốt cách này: test đổi tên cho đúng nội dung, `KM-003-NFR06` ghi thêm ngoại lệ.
 2. **Commit không khớp từng bước:** bước 2 và 3 chung một commit (`5d2c697`), vì AC09 cần một route thật để đọc body. Test bước 8 nằm trong commit bước 7 (`a62bb71`).
 3. **AC34 viết ở bước 6, không phải bước 4:** cần một thao tác có token mà không huỷ phiên. AC09 phần `413` theo kích thước dòng cũng ở `vaults.server.js`, vì khi đăng ký body luôn lớn hơn dòng nên ca này chỉ xảy ra ở `PUT`.
 4. **`--binding` thay vì tệp cho harness, đúng plan, nhưng có thêm phát hiện:** `--env-file` không có tác dụng với `pages dev`. `--binding` được wrangler in là `(hidden)` nên không lộ qua log; AC52 dò cả hai bí mật này.
 5. **`wrangler` không phải lúc nào cũng thoát khi nhận SIGTERM:** plan không lường trước. Harness chạy server trong process group riêng, SIGKILL sau 3 giây, và không giữ runner sống nếu test đỏ.
+6. **Amendment 2, thêm `startEdge` và hai test cho AC25**, theo yêu cầu của originator sau khi đọc báo cáo. Không đổi `src/functions`.
 
 ## 6. Discovered work
 
@@ -562,7 +566,7 @@ $ node --test --test-name-pattern="AC59" test/server/*.server.js   # trích từ
 
 > *What a reviewer should look at hardest.*
 
-- **AC25 chưa chứng minh trọn:** ai tự đặt `CF-Connecting-IP` có qua được Cloudflare thật không thì chỉ KM-006 trả lời được. Toàn bộ khoá theo IP dựa vào điều này.
+- **AC25 vẫn chưa chứng minh trọn:** test mô phỏng chỉ cho thấy server đúng *nếu* header bị ghi đè; proxy là do ta viết theo mô tả về Cloudflare. Cloudflare có ghi đè thật không thì chỉ KM-006 trả lời được, và toàn bộ khoá theo IP dựa vào điều này. Test `(boundary)` ghim đúng hệ quả: không có lớp đó thì không bao giờ khoá.
 - **Không test nào chạy trên Cloudflare thật.** Số đo AC56 là trên máy dev, không cho biết giới hạn 10 ms CPU có đủ không; mỗi request có token còn tốn một lần ghi để gia hạn (Concern 5).
 - **Nhánh `too big`** trong `[[route]].js` dựa vào câu lỗi đoán trước (`too big|TOOBIG`), mới kiểm bằng trigger giả cùng câu lỗi.
 - **`ROW_OVERHEAD_BYTES = 256`** trong `_validate.js` là ước lượng rộng tay, không phải cách D1 tính kích thước dòng. Dòng sát 2 000 000 byte có thể lệch; nhánh `too big` là lớp đỡ phía sau.

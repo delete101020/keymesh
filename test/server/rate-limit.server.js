@@ -1,7 +1,7 @@
 // Login lockouts per username and per IP. Waiting is done by moving timestamps back in the local file.
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAccount, newAuthKey, newBlob, startServer, uniqueIp, uniqueName } from '../../testkit/wrangler-server.mjs';
+import { createAccount, newAuthKey, newBlob, startEdge, startServer, uniqueIp, uniqueName } from '../../testkit/wrangler-server.mjs';
 
 let server;
 before(async () => {
@@ -60,15 +60,40 @@ test('KM-005 AC24 20 failures from one IP lock that IP on any username; another 
   assert.equal((await login(account.username, account.authKey, uniqueIp())).status, 200);
 });
 
+const spoof = (n) =>
+  Object.fromEntries(['X-Forwarded-For', 'X-Real-IP', 'True-Client-IP', 'X-Client-IP', 'CF-Connecting-IPv6', 'CF-Pseudo-IPv4'].map((name) => [name, `203.0.113.${n}`]).concat([['Forwarded', `for=203.0.113.${n}`]]));
+
 test('KM-005 AC25 (local half) forwarding headers a client sets are not the address', async () => {
   const ip = uniqueIp();
-  const spoof = (n) => ({ 'X-Forwarded-For': `203.0.113.${n}`, 'X-Real-IP': `203.0.113.${n}`, 'True-Client-IP': `203.0.113.${n}`, Forwarded: `for=203.0.113.${n}` });
   for (let i = 0; i < 20; i++) {
     const response = await login(uniqueName('spoof'), newAuthKey(), ip, spoof(i));
     assert.equal(response.status, 401);
   }
   const account = await createAccount(server);
   assertLocked(await login(account.username, account.authKey, ip, spoof(99)));
+});
+
+test('KM-005 AC25 (simulated edge) a spoofed CF-Connecting-IP that gets overwritten changes nothing: locked by the real address', async () => {
+  const realIp = uniqueIp();
+  const edge = await startEdge(server, realIp);
+  try {
+    const account = await createAccount(server);
+    for (let i = 0; i < 20; i++) {
+      const response = await server.call('POST', '/api/login', { json: { username: uniqueName('edge'), authKey: newAuthKey() }, ip: `203.0.113.${i}`, headers: spoof(i), via: edge.url });
+      assert.equal(response.status, 401);
+    }
+    const body = { username: account.username, authKey: account.authKey };
+    assertLocked(await server.call('POST', '/api/login', { json: body, ip: '203.0.113.200', headers: spoof(200), via: edge.url }));
+    assertLocked(await login(account.username, account.authKey, realIp));
+    assert.equal((await login(account.username, account.authKey, '203.0.113.0')).status, 200, 'the spoofed value was never counted');
+  } finally {
+    await edge.stop();
+  }
+});
+
+// Pins the boundary rather than a wish: the lock per IP holds only while Cloudflare is the sole way in.
+test('KM-005 AC25 (boundary) reached without an edge, a changing CF-Connecting-IP is believed and never locks', async () => {
+  for (let i = 0; i < 21; i++) assert.equal((await wrong(uniqueName('direct'), uniqueIp())).status, 401);
 });
 
 test('KM-005 AC26 two IPv6 addresses of one /64 share a counter, in any spelling; garbage shares one too', async () => {

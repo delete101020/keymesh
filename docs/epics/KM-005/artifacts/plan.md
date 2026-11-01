@@ -65,7 +65,9 @@ Phương án bị loại thứ hai: **test gọi handler trực tiếp trên Nod
 
 **Không đụng:** `src/public/**` (kể cả `core/`, `sw.js`, `_headers`), `testkit/vectors.js`, `testkit/serve.mjs`, `test/*.test.js` (trừ amendment dưới), `test/e2e/*`.
 
-**Amendment 1 (bước implement, 2026-11-02):** `test/ui-static.test.js` có `KM-003 NFR06` đòi `devDependencies` rỗng, viết lúc "chưa có `wrangler`". Plan bỏ sót test này: NFR09 (thêm `wrangler`) và NFR10 (`npm test` xanh) không thể cùng đạt nếu không sửa nó. Sửa đúng một assert: `devDependencies` chỉ được có `wrangler`, ghim đúng phiên bản. Giữ nguyên ý của test và khớp `CLAUDE.md` ("ngoại lệ duy nhất: `wrangler`").
+**Amendment 1 (bước implement, 2026-11-02):** `test/ui-static.test.js` có `KM-003 NFR06` đòi `devDependencies` rỗng, viết lúc "chưa có `wrangler`". Plan bỏ sót test này: NFR09 (thêm `wrangler`) và NFR10 (`npm test` xanh) không thể cùng đạt nếu không sửa nó. Sửa đúng một assert: `devDependencies` chỉ được có `wrangler`, ghim đúng phiên bản. Giữ nguyên ý của test và khớp `CLAUDE.md` ("ngoại lệ duy nhất: `wrangler`"). Originator yêu cầu chốt cách này (2026-11-02): đổi tên test cho đúng nội dung và ghi ngoại lệ vào `KM-003-NFR06` trong `docs/epics/KM-003/artifacts/spec.md`.
+
+**Amendment 2 (bước implement, 2026-11-02, originator yêu cầu):** thu hẹp khoảng trống của AC25. Thêm `startEdge` vào `testkit/wrangler-server.mjs`, một proxy cục bộ ghi đè `CF-Connecting-IP`, và hai test trong `test/server/rate-limit.server.js`. Không đổi `src/functions`: mã đã chỉ đọc đúng một header. Đây là mô phỏng, nên phần "Cloudflare có ghi đè thật không" vẫn ở `KM-006.md`, với quy trình kiểm cụ thể; không deploy ở epic này (§7).
 
 ## 3. Order
 
@@ -135,7 +137,7 @@ Test đặt tên `KM-005 ACnn …` theo tiền lệ KM-004. "`S`" là `npm run t
 | `KM-005-AC22` | `rate-limit`: cùng chuỗi mã, so với AC21 | `S` |
 | `KM-005-AC23` | `rate-limit` | `S` |
 | `KM-005-AC24` | `rate-limit`: `CF-Connecting-IP` khác nhau cho hai IP | `S` |
-| `KM-005-AC25` | **Một phần.** `rate-limit`: đổi `X-Forwarded-For`, `X-Real-IP`, `True-Client-IP` mỗi lần vẫn bị khoá. **Phần `CF-Connecting-IP` giả: chuyển `KM-006.md`** (Concern 4) | `S`; KM-006 trên Cloudflare |
+| `KM-005-AC25` | **Một phần.** `rate-limit`: đổi `X-Forwarded-For`, `X-Real-IP`, `True-Client-IP` mỗi lần vẫn bị khoá; qua proxy mô phỏng ghi đè `CF-Connecting-IP`, giá trị giả không có tác dụng (Amendment 2). **Việc Cloudflare có ghi đè thật không: chuyển `KM-006.md`** (Concern 4) | `S`; KM-006 trên Cloudflare |
 | `KM-005-AC26` | `rate-limit`: hai địa chỉ cùng /64, kể cả viết rút gọn và đầy đủ; giá trị rác dùng chung bộ đếm (xem §4) | `S` |
 | `KM-005-AC27` | `rate-limit`: thử khi khoá, lùi `locked_until` trong DB, đăng nhập đúng được | `S` |
 | `KM-005-AC28` | `rate-limit`: lùi khoá, sai 4 lần | `S` |
