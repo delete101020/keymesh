@@ -16,17 +16,16 @@ const ROW_OVERHEAD_BYTES = 256;
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hasExactly = (value, keys) => isObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 const isBase64 = (value) => typeof value === 'string' && value.length > 0 && value.length % 4 === 0 && B64_RE.test(value);
-const isEncrypted = (value) => B64_12_BYTES_RE.test(value.iv) && isBase64(value.ct);
+const isEncrypted = (value) => typeof value.iv === 'string' && B64_12_BYTES_RE.test(value.iv) && isBase64(value.ct);
 
 const refuse = (code) => {
   throw new ApiError(code);
 };
 
-export const validUsername = (value) => typeof value === 'string' && USERNAME_RE.test(value);
 export const validVaultId = (value) => typeof value === 'string' && VAULT_ID_RE.test(value);
 
 export function checkUsername(value) {
-  if (!validUsername(value)) refuse('bad_request');
+  if (typeof value !== 'string' || !USERNAME_RE.test(value)) refuse('bad_request');
 }
 
 export function checkKdf(kdf) {

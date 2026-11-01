@@ -117,6 +117,7 @@ const BAD_BLOBS = [
   (b) => ({ ...b, iv: Buffer.alloc(11).toString('base64') }),
   (b) => ({ ...b, iv: Buffer.alloc(13).toString('base64') }),
   (b) => ({ ...b, iv: 12 }),
+  (b) => ({ ...b, iv: 1234567890123456 }), // 16 digits: a regex alone would coerce and accept it
   (b) => ({ ...b, ct: '' }),
   (b) => ({ ...b, ct: 'abc' }),
   (b) => ({ ...b, ct: 'not base64!!' }),

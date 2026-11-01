@@ -24,13 +24,14 @@ const ERRORS = Object.freeze({
   internal: [500, 'Internal error'],
 });
 
+export const errorMessage = (code) => ERRORS[code][1];
+
 export class ApiError extends Error {
-  constructor(code, { headers, fields } = {}) {
+  constructor(code, { headers } = {}) {
     super(code);
     this.name = 'ApiError';
     this.code = code;
     this.headers = headers;
-    this.fields = fields;
   }
 }
 
@@ -47,9 +48,9 @@ export function jsonResponse(status, value, headers = {}) {
   return rawJsonResponse(status, JSON.stringify(value), headers);
 }
 
-export function errorResponse(code, { headers, fields } = {}) {
+export function errorResponse(code, { headers } = {}) {
   const [status, message] = ERRORS[code];
-  return jsonResponse(status, { error: code, message, ...fields }, headers);
+  return jsonResponse(status, { error: code, message }, headers);
 }
 
 // Counts the bytes actually received: Content-Length may be absent or wrong.

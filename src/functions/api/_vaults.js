@@ -1,15 +1,11 @@
 // Every query filters on the session's user_id: a vault that is someone else's and one that does not
 // exist take the same path to the same 404 (FR31).
 import { toHex, utf8Encode } from '../../public/js/core/bytes.js';
-import { ApiError, emptyResponse, jsonResponse, rawJsonResponse, readJsonObject } from './_http.js';
+import { ApiError, emptyResponse, errorMessage, jsonResponse, rawJsonResponse, readJsonObject } from './_http.js';
 import { sha256 } from './_secrets.js';
 import { checkBlob, checkNewVault, checkRowFits } from './_validate.js';
 
 const SINCE_RE = /^\d{1,15}$/;
-
-function notFound() {
-  return new ApiError('not_found');
-}
 
 async function listEtag(rows) {
   const text = rows.map((row) => `${row.id}:${row.version}:${row.meta_version}`).join(',');
@@ -72,7 +68,7 @@ const withBlob = (fields, blob) => `${JSON.stringify(fields).slice(0, -1)},"blob
 
 export async function readVault({ env, url, session, vaultId }) {
   const row = await env.DB.prepare('SELECT version, updated_at, blob FROM dt_vault WHERE id = ? AND user_id = ?').bind(vaultId, session.userId).first();
-  if (!row) throw notFound();
+  if (!row) throw new ApiError('not_found');
   const since = url.searchParams.get('since');
   if (since !== null && !SINCE_RE.test(since)) throw new ApiError('bad_request');
   if (since !== null && Number(since) === row.version) return emptyResponse(304);
@@ -82,7 +78,7 @@ export async function readVault({ env, url, session, vaultId }) {
 export async function writeVault({ request, env, session, vaultId }) {
   // Ownership before the body: someone else's vault with a bad blob is still the plain 404.
   const owned = await env.DB.prepare('SELECT length(wrapped_vault_key) + length(meta) AS other FROM dt_vault WHERE id = ? AND user_id = ?').bind(vaultId, session.userId).first();
-  if (!owned) throw notFound();
+  if (!owned) throw new ApiError('not_found');
 
   const body = await readJsonObject(request);
   if (!Number.isSafeInteger(body.baseVersion) || body.baseVersion < 0) throw new ApiError('bad_request');
@@ -102,6 +98,6 @@ export async function writeVault({ request, env, session, vaultId }) {
   if (written) return jsonResponse(200, { version: written.version, updatedAt: written.updated_at });
 
   const current = await env.DB.prepare('SELECT version, updated_at, blob FROM dt_vault WHERE id = ? AND user_id = ?').bind(vaultId, session.userId).first();
-  if (!current) throw notFound();
-  return rawJsonResponse(409, withBlob({ error: 'version_conflict', message: 'Version conflict', version: current.version, updatedAt: current.updated_at }, current.blob));
+  if (!current) throw new ApiError('not_found');
+  return rawJsonResponse(409, withBlob({ error: 'version_conflict', message: errorMessage('version_conflict'), version: current.version, updatedAt: current.updated_at }, current.blob));
 }
