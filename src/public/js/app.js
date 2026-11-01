@@ -27,6 +27,8 @@ import {
 // the event that finds the session expired, but by then the lock has removed everything it could touch.
 const PASSIVE_ACTIVITY = ['pointermove', 'mousemove', 'wheel', 'scroll', 'touchstart', 'touchmove'];
 const ACTIVE_ACTIVITY = ['pointerdown', 'keydown', 'input', 'click'];
+// The events that carry a user gesture. iOS fires no click on a tap outside a control, hence touchend.
+const GESTURE_EVENTS = ['touchend', 'keydown', 'click'];
 
 const emptyView = () => ({
   filter: { k: 'all' },
@@ -64,7 +66,12 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
   let session = null;
   let releaseTab = null;
   let toastTimer = null;
-  const clipboard = createClipboardGuard();
+  const clipboard = createClipboardGuard({
+    onRetryChange: (pending) =>
+      pending
+        ? toast('Trình duyệt chưa cho xoá clipboard. Chạm vào app để xoá.', 'warn')
+        : toast('Đã xoá khỏi clipboard.'),
+  });
   const idle = createIdleTimer({ onExpire: () => lock() });
   const applySettings = () => idle.setTimeouts(lockTimes(state.settings, touch));
   applySettings();
@@ -235,8 +242,10 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       const wake = () => idle.check();
       win.addEventListener('focus', () => {
         wake();
-        clipboard.focused();
+        clipboard.retry();
       });
+      const gesture = () => clipboard.retry();
+      for (const type of GESTURE_EVENTS) win.addEventListener(type, gesture, { capture: true, passive: true });
       win.addEventListener('pageshow', wake);
       win.document.addEventListener('visibilitychange', () => {
         const hidden = win.document.visibilityState === 'hidden';
@@ -450,14 +459,14 @@ export function createApp({ confirmDiscard = async () => true } = {}) {
       if (field.kind === 'otp') {
         const parsed = parseOtp(field.v);
         if (!parsed.ok) return toast('Secret OTP không hợp lệ, không có mã để copy.', 'error');
-        value = await totp(parsed, Date.now());
+        value = totp(parsed, Date.now()); // not awaited: the write must start inside the gesture
       }
       const ok = await clipboard.copy(value);
       if (!ok) return toast('Không copy được: trình duyệt đã từ chối.', 'error');
       noteRecent(item.id);
       const warnProd = session?.vault && isProd(session.vault, item);
-      if (warnProd) return toast('Đã copy giá trị của env prod. Sẽ xoá khỏi clipboard sau 30 giây.', 'warn');
-      return toast('Đã copy. Sẽ xoá khỏi clipboard sau 30 giây.');
+      if (warnProd) return toast('Đã copy giá trị của env prod. Sẽ xoá khỏi clipboard sau 30 giây nếu trình duyệt cho phép.', 'warn');
+      return toast('Đã copy. Sẽ xoá khỏi clipboard sau 30 giây nếu trình duyệt cho phép.');
     },
 
     canFork: (item) => itemLiveEnvs(session.vault, item).length >= 2,
