@@ -60,10 +60,13 @@ export function bindNavHistory(app, { win = window } = {}) {
     goBack();
   });
 
+  // iOS has its own edge swipe, which arrives here as a popstate. Going back a second time from the same
+  // swipe makes WebKit load the whole page again, and that locks the vault. navigator.standalone is iOS only.
+  const systemSwipe = () => 'standalone' in win.navigator;
   let swipe = null;
   win.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
-    swipe = e.touches.length === 1 && t.clientX <= EDGE_PX && inMain() && narrow.matches ? { x: t.clientX, y: t.clientY } : null;
+    swipe = !systemSwipe() && e.touches.length === 1 && t.clientX <= EDGE_PX && inMain() && narrow.matches ? { x: t.clientX, y: t.clientY } : null;
   }, { passive: true });
   win.addEventListener('touchend', (e) => {
     if (!swipe) return;

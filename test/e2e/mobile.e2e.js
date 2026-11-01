@@ -173,6 +173,22 @@ test('KM-004 AC08 swiping from the left edge goes back; a swipe from the middle 
   await page.waitFor(`history.state.km === 0`);
 });
 
+test('KM-004 AC08 on iOS the system owns the edge swipe: the app does not go back as well, and the Back it sends still works', async () => {
+  await page.click('Tất cả', { exact: false });
+  await page.click(MARK);
+  assert.equal(await pane(), 'detail');
+  await page.eval(`Object.defineProperty(navigator, 'standalone', { value: true, configurable: true })`);
+  await swipe(5, 150);
+  assert.equal(await pane(), 'detail');
+  await page.eval(`history.back()`);
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(await pane(), 'list');
+  await page.eval(`delete navigator.standalone`);
+  await swipe(5, 150);
+  assert.equal(await pane(), 'nav');
+  await page.waitFor(`history.state.km === 0`);
+});
+
 test('KM-004 AC08 after locking, Back shows nothing of the vault', async () => {
   await page.click('Tất cả', { exact: false });
   await page.click(MARK);
