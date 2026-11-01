@@ -1,12 +1,14 @@
 // The one entry point of /api/*. The order below is the contract: Origin, route, token, id, then the
 // handler (owner, body, content, write). A stranger therefore learns nothing from content errors.
-import { prelogin, register } from './_auth.js';
+import { authenticate, login, logout, prelogin, register } from './_auth.js';
 import { ApiError, errorResponse } from './_http.js';
 import { validVaultId } from './_validate.js';
 
 const ROUTES = [
   { method: 'GET', path: /^\/api\/prelogin$/, handler: prelogin },
   { method: 'POST', path: /^\/api\/register$/, handler: register },
+  { method: 'POST', path: /^\/api\/login$/, handler: login },
+  { method: 'POST', path: /^\/api\/logout$/, auth: true, handler: logout },
 ];
 
 function originAllowed(request, env) {
@@ -33,8 +35,9 @@ async function handle(context) {
   const matched = match(request.method, url.pathname);
   if (!matched) return errorResponse('not_found');
   const { route, vaultId } = matched;
+  const session = route.auth ? await authenticate(request, env) : null;
   if (vaultId !== undefined && !validVaultId(vaultId)) return errorResponse('invalid_id');
-  return route.handler({ request, env, url, vaultId, waitUntil: (p) => context.waitUntil(p) });
+  return route.handler({ request, env, url, session, vaultId, waitUntil: (p) => context.waitUntil(p) });
 }
 
 export async function onRequest(context) {

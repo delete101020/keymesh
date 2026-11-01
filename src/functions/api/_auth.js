@@ -1,9 +1,10 @@
-import { toBase64 } from '../../public/js/core/bytes.js';
+import { fromBase64, toBase64 } from '../../public/js/core/bytes.js';
 import { KDF_MIN_ITER, KDF_NAME } from '../../public/js/core/crypto.js';
-import { ApiError, jsonResponse, parseObject, readBody } from './_http.js';
-import { LABEL_FAKE_SALT, hashAuthKey, hashToken, labeledHmac, newId, newStamp, newToken, requireServerSecret, safeEqualStrings } from './_secrets.js';
+import { ApiError, emptyResponse, jsonResponse, parseObject, readBody, readJsonObject } from './_http.js';
+import { LABEL_FAKE_AUTH, LABEL_FAKE_SALT, hashAuthKey, hashToken, labeledHmac, newId, newStamp, newToken, requireServerSecret, safeEqual, safeEqualStrings } from './_secrets.js';
 import { checkAuthKey, checkDeviceName, checkKdf, checkNewVault, checkRowFits, checkUsername, checkWrappedAccountKey } from './_validate.js';
 
+const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_REGISTRATION_TOKEN_LENGTH = 32;
 
@@ -84,4 +85,53 @@ export async function register({ request, env }) {
     throw conflictFrom(error);
   }
   return jsonResponse(201, { userId, token: session.token, expiresAt: session.expiresAt, vault: { id: vault.id, version: 1, metaVersion: 1 } });
+}
+
+export async function login({ request, env }) {
+  const body = await readJsonObject(request);
+  checkUsername(body.username);
+  checkAuthKey(body.authKey);
+  checkDeviceName(body.deviceName);
+  const secret = requireServerSecret(env);
+
+  const user = await env.DB.prepare('SELECT id, kdf_name, kdf_iter, kdf_salt, auth_hash, wrapped_account_key, security_stamp FROM dt_user WHERE username = ?').bind(body.username).first();
+  // Both branches hash and compare: an unknown username does the same work against a keyed fake (FR16).
+  const fake = await labeledHmac(secret, LABEL_FAKE_AUTH, folded(body.username));
+  const expected = user ? fromBase64(user.auth_hash, 'auth_hash') : fake;
+  const same = safeEqual(await hashAuthKey(body.authKey), expected);
+  if (!user || !same) throw new ApiError('invalid_credentials');
+
+  const now = Date.now();
+  const session = await newSession(env.DB, { userId: user.id, stamp: user.security_stamp, deviceName: body.deviceName, now });
+  await session.statement.run();
+  return jsonResponse(200, {
+    userId: user.id,
+    token: session.token,
+    expiresAt: session.expiresAt,
+    sessionId: session.sessionId,
+    kdf: { name: user.kdf_name, iter: user.kdf_iter, salt: user.kdf_salt },
+    wrappedAccountKey: JSON.parse(user.wrapped_account_key),
+  });
+}
+
+// One statement: the checks and the sliding renewal cannot be separated by another request.
+export async function authenticate(request, env) {
+  const match = /^Bearer (.+)$/.exec(request.headers.get('Authorization') ?? '');
+  if (!match || !TOKEN_RE.test(match[1])) throw new ApiError('unauthorized');
+  const now = Date.now();
+  const session = await env.DB.prepare(
+    `UPDATE dt_session SET expires_at = ?1, last_seen_at = ?2
+     WHERE token_hash = ?3 AND expires_at > ?2
+       AND security_stamp = (SELECT security_stamp FROM dt_user WHERE dt_user.id = dt_session.user_id)
+     RETURNING id, user_id`,
+  )
+    .bind(now + SESSION_MS, now, await hashToken(match[1]))
+    .first();
+  if (!session) throw new ApiError('unauthorized');
+  return { id: session.id, userId: session.user_id };
+}
+
+export async function logout({ env, session }) {
+  await env.DB.prepare('DELETE FROM dt_session WHERE id = ?').bind(session.id).run();
+  return emptyResponse(204);
 }
