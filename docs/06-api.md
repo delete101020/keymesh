@@ -25,13 +25,13 @@
 | PUT | `/api/vaults/:id` | Ghi blob kèm kiểm tra version | KM-005 |
 | PATCH | `/api/vaults/:id` | Đổi metadata (tên, màu, thứ tự) đã mã hoá | KM-008 |
 | DELETE | `/api/vaults/:id` | Xoá vault cùng mọi snapshot của nó | KM-008 |
-| POST | `/api/vaults/:id/rotate` | Xoay `vaultKey` của một vault | KM-008 |
+| POST | `/api/vaults/:id/rotate` | Xoay `vaultKey` của một vault | Epic Xoay khoá (đề xuất ở KM-011) |
 | GET | `/api/vaults/:id/snapshots` | Danh sách snapshot của vault | KM-009 |
 | GET | `/api/vaults/:id/snapshots/:version` | Lấy một snapshot | KM-009 |
 | GET | `/api/sessions` | Danh sách thiết bị/phiên | KM-009 |
 | DELETE | `/api/sessions/:id` | Thu hồi một phiên | KM-009 |
 | POST | `/api/account/password` | Đổi master password | KM-009 |
-| POST | `/api/account/rotate` | Xoay `accountKey` (bọc lại mọi `vaultKey`) | KM-009 |
+| POST | `/api/account/rotate` | Xoay `accountKey` (bọc lại mọi `vaultKey`) | Epic Xoay khoá (đề xuất ở KM-011) |
 | GET | `/api/audit?limit=` | Nhật ký hoạt động | KM-009 |
 
 ## Chi tiết

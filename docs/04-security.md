@@ -18,7 +18,7 @@
 | Session token | 32B ngẫu nhiên (base64url) | server lưu `SHA-256(token)` |
 | Mở khoá sinh trắc học | WebAuthn PRF extension | salt PRF 32B cố định cho mỗi credential |
 
-> Argon2id tốt hơn PBKDF2 trước tấn công bằng GPU, nhưng WebCrypto chưa hỗ trợ nên phải dùng WASM. Trường `kdf_name` đã được thiết kế sẵn để nâng cấp sau. Xem [08-roadmap.md](08-roadmap.md).
+> Argon2id tốt hơn PBKDF2 trước tấn công bằng GPU, nhưng WebCrypto chưa hỗ trợ nên phải dùng WASM. Trường `kdf_name` đã được thiết kế sẵn để nâng cấp sau. KM-011 xếp là **hoãn**: phải nới quy ước không phụ thuộc bên thứ ba và CSP, mà chưa có mối lo cụ thể. Xem [08-roadmap.md](08-roadmap.md).
 
 ## Vòng đời khoá
 
@@ -85,11 +85,13 @@
 | Dò id vault | Người có phiên hợp lệ biết một id đang được dùng, qua `409 vault_exists` | Đọc và ghi vẫn trả cùng một `404`; id 64 bit ngẫu nhiên, không chứa thông tin | Originator chấp nhận vì không lộ nội dung, chỉ người đã đăng nhập thấy được (KM-005 Concern 2) |
 | Xung đột đồng bộ làm mất dữ liệu | — | Gộp ba chiều theo field, lưu bản thua vào `history`, thùng rác 30 ngày, cùng 30 snapshot trên server cho mỗi vault (từ KM-009) | Trước KM-009, lần ghi đè không khôi phục được từ server |
 | Lỡ tay xoá item | — | Thùng rác giữ nguyên nội dung 30 ngày trước khi xoá trắng | Sau khi xoá trắng thì chỉ còn snapshot hoặc file backup |
-| Quên master password | Mất toàn bộ dữ liệu | Passkey trên thiết bị đã đăng ký vẫn mở được, dùng để đặt mật khẩu mới; nên tải backup định kỳ | Có thể thêm *recovery key* in ra giấy (xem roadmap) |
+| Quên master password | Mất toàn bộ dữ liệu | Passkey trên thiết bị đã đăng ký vẫn mở được dữ liệu; nên tải backup định kỳ | Chưa đặt được mật khẩu mới, và backup cũng mở bằng chính mật khẩu đó. Máy không bật passkey thì mất hết cho tới khi epic Khôi phục khi quên mật khẩu (đề xuất ở KM-011) xong |
 
 ## Điều kiện trước khi đưa secret thật lên server
 
 Khi KM-006 xong, app đã đồng bộ được nhưng KM-009 (M5) chưa có. Trong khoảng đó: chưa thu hồi được phiên của máy bị mất, chưa đổi được master password, lần ghi đè không khôi phục được từ server, không có nhật ký hoạt động. **Originator xem lại các điểm này trước lần đầu đưa secret thật lên server** (KM-005 Concern 18). Khi có epic nâng số vòng KDF (đổi mật khẩu ở KM-009 hoặc về sau) thì xem lại Concern 7: tài khoản có `iter` khác 600 000 sẽ tự lộ là có thật qua prelogin.
+
+Đổi mật khẩu giữ nguyên `accountKey`, nên ai đã giải được khoá này thì đổi mật khẩu không thu hồi được. KM-011 đã xếp hạng (originator chốt 2026-11-02): **epic Xoay khoá (F-AUTH-09, cả vault lẫn tài khoản) và epic Khôi phục khi quên mật khẩu (F-AUTH-10, đặt lại mật khẩu bằng passkey) đều phải xong trước `KM-014`**, nên cũng trước lần đầu đưa secret thật lên server. Hai epic này mới là đề xuất, chưa có mã.
 
 ## Lưu ý tuân thủ
 

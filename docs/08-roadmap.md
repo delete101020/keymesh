@@ -10,7 +10,7 @@
 | **M3 · Đồng bộ** | Pages Functions, D1 migration (nhiều vault/user), auth, kiểm tra `ALLOWED_ORIGINS`, `/api/vaults/*`, sync engine theo từng vault, thanh trạng thái | Đạt tiêu chí chấp nhận 1–3 trong [07](07-features.md#tiêu-chí-chấp-nhận-cho-kịch-bản-chính) |
 | **M4 · Passkey** | Mở khoá bằng WebAuthn PRF | Đạt tiêu chí 4 |
 | **M5 · Hoàn thiện** | Snapshot, quản lý thiết bị, đổi mật khẩu theo luồng mới, export Bitwarden, audit log, **thùng rác** (UI khôi phục và tự xoá trắng), **bản sao tự động ra file**, **quản lý vault** (tạo, đổi tên, chuyển, xoá) | Đạt tiêu chí 6–8 |
-| **M6 · Tuỳ chọn** | Argon2id (WASM), recovery key, mật khẩu riêng cho từng vault, chuyển item giữa vault, share target | — |
+| **M6 · Tuỳ chọn** | Đã xếp hạng ở KM-011. **Làm, trước `KM-014`:** khôi phục khi quên mật khẩu (F-AUTH-10), xoay khoá (F-AUTH-09). **Hoãn:** Argon2id (WASM), mật khẩu riêng cho từng vault, chuyển item giữa vault, export plaintext, tag và yêu thích trên màn rộng. **Bỏ:** share target | Hai epic "làm" đạt trên giả lập và server cục bộ |
 
 **Trạng thái M2 (KM-004, 2026-11-01): đạt trên giả lập.** Giả lập Android và iOS đều đã cài, mở được offline và tự khoá khi ở nền. Năm mục kiểm tay của KM-003 và copy bằng tay trên Safari, Firefox desktop được originator tách sang KM-013 (2026-11-01), không chặn M2. Màn đa nhiệm vẫn lộ nội dung trên cả hai giả lập; originator chấp nhận cho M2 vì chỉ dùng dữ liệu thử (2026-11-01), tự che lại secret ở KM-012. Tiêu chí này chỉ có nghĩa là đạt trên giả lập: **chưa kiểm trên điện thoại thật thì chưa cất secret thật trên điện thoại**.
 
@@ -42,3 +42,4 @@ Các câu hỏi mở trước đây, chốt ngày 2026-10-30:
 | Q6 | Có gộp theo field ngay từ đầu không? | **Có.** Gộp ba chiều theo từng thuộc tính và từng field; `scopes`/`tags` gộp như tập hợp; chỉ tính xung đột khi hai bên cùng sửa một giá trị | [03](03-data-model.md#đồng-hồ-clock), [05](05-sync.md#thuật-toán-gộp-ba-chiều-theo-field) |
 | Q7 | Dùng tiền tố id hay hex trần? | Id trong vault dùng tiền tố (`p_`, `e_`, `i_`, `f_`, `d_`). `vaultId` là 16 hex ngẫu nhiên **không tiền tố**, không băm hay HMAC vì id ngẫu nhiên không chứa thông tin gì. Code chấp nhận cả hai dạng. UI không hiện id thô | [03](03-data-model.md#id), [04](04-security.md) |
 | Q8 | Có import hoặc migrate dữ liệu v1 không? (chốt 2026-11-01) | **Không.** v1 chưa từng chứa dữ liệu thật và không có file v1 nào cần giữ. `envvault.html` chỉ còn để tham chiếu | [07](07-features.md), intent KM-001 và KM-003 |
+| Q9 | Mục nào trong M6 phải có trước secret thật? (chốt 2026-11-02) | Khôi phục khi quên mật khẩu và xoay khoá, làm thành hai epic trước `KM-014`. Argon2id hoãn vì chỉ còn lý do phòng xa, không đủ để nới quy ước. Share target bỏ | [04](04-security.md), intent KM-011 |

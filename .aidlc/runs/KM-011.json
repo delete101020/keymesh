@@ -6,18 +6,28 @@
     "epic": "KM-011"
   },
   "startedAt": "2026-10-30T04:44:57.000Z",
-  "updatedAt": "2026-10-30T04:44:57.000Z",
+  "updatedAt": "2026-11-02T02:45:00.658Z",
   "currentStepIdx": 0,
-  "status": "running",
+  "status": "completed",
   "steps": [
     {
       "stepIdx": 0,
       "agent": "aidlc-native-originator",
       "name": "intent",
       "revision": 1,
-      "status": "awaiting_work",
+      "status": "approved",
       "startedAt": "2026-10-30T04:44:57.000Z",
-      "artifactsProduced": []
+      "artifactsProduced": [
+        "docs/epics/KM-011/artifacts/intent.md"
+      ],
+      "finishedAt": "2026-11-02T02:45:00.658Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-02T02:45:00.658Z",
+          "revision": 1
+        }
+      ]
     }
   ]
 }

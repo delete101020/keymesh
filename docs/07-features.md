@@ -1,6 +1,6 @@
 # 07 · Đặc tả chức năng
 
-Ký hiệu trạng thái: ✅ đã có trong v1 (`legacy/envvault.html`) · 🆕 mới ở v2 · ⏳ để sau.
+Ký hiệu trạng thái: ✅ đã có trong v1 (`legacy/envvault.html`) · 🆕 mới ở v2 · ⏳ để sau · ✖ đã bỏ. Các mục P3 và tuỳ chọn đã được xếp hạng ở `docs/epics/KM-011/artifacts/intent.md`.
 Ký hiệu ưu tiên: **P1** bắt buộc cho bản đầu · **P2** nên có · **P3** tuỳ chọn.
 
 ## 1. Tài khoản và mở khoá
@@ -15,8 +15,8 @@ Ký hiệu ưu tiên: **P1** bắt buộc cho bản đầu · **P2** nên có ·
 | F-AUTH-06 | Đổi master password | P1 | ✅ → 🆕 (theo luồng mới) |
 | F-AUTH-07 | Quản lý thiết bị: xem và thu hồi session | P2 | 🆕 |
 | F-AUTH-08 | Đăng xuất (tuỳ chọn xoá dữ liệu cục bộ) | P1 | 🆕 |
-| F-AUTH-09 | Xoay khoá của một vault; xoay khoá tài khoản | P3 | 🆕 |
-| F-AUTH-10 | Recovery key in ra giấy | P3 | ⏳ |
+| F-AUTH-09 | Xoay khoá của một vault; xoay khoá tài khoản | P1 (trước `KM-014`, KM-011) | 🆕 |
+| F-AUTH-10 | Recovery key in ra giấy; đặt lại mật khẩu bằng passkey khi quên | P1 (trước `KM-014`, KM-011) | 🆕 |
 | F-AUTH-11 | Chỉnh thời gian tự khoá trong cài đặt (desktop: không thao tác, mặc định 10 phút; mobile: sau khi chuyển nền, mặc định 60 giây) | P1 | ✅ |
 
 ## 1b. Vault
@@ -28,7 +28,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-VLT-01 | Tạo sẵn một vault mặc định khi đăng ký; mọi chức năng khác chạy trên vault đang chọn | P1 | 🆕 |
 | F-VLT-02 | Tạo, đổi tên, đặt màu, xoá vault (xoá phải nhập lại mật khẩu, không xoá được vault cuối cùng) | P2 | 🆕 |
 | F-VLT-03 | Chuyển vault: bộ chọn ở đầu cột trái (desktop) hoặc đầu trang chủ (mobile); tìm kiếm có tuỳ chọn "mọi vault" | P2 | 🆕 |
-| F-VLT-04 | Chuyển hoặc sao chép item sang vault khác (scope bị bỏ vì env thuộc vault cũ) | P3 | 🆕 |
+| F-VLT-04 | Chuyển hoặc sao chép item sang vault khác (scope bị bỏ vì env thuộc vault cũ) | P3 | ⏳ (KM-011) |
 
 ## 2. Project và môi trường
 
@@ -54,7 +54,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-ITM-08 | Lịch sử phiên bản (20 bản), xem diff, khôi phục | P1 | ✅ (v2 thêm diff) |
 | F-ITM-09 | Ngày hết hạn và danh sách "Sắp hết hạn" (≤ 14 ngày) | P2 | ✅ |
 | F-ITM-10 | Sinh mật khẩu ngay cạnh field `secret`: chế độ *Ngẫu nhiên* (độ dài 8–64, chữ hoa, số, ký tự đặc biệt) và *Dễ nhớ* (ghép từ) | P2 | ✅ (v2 thêm tuỳ chọn) |
-| F-ITM-11 | Tag, đánh dấu yêu thích | P3 | Yêu thích ✅ (chỉ màn hẹp); tag 🆕 |
+| F-ITM-11 | Tag, đánh dấu yêu thích | P3 | Yêu thích ✅ (chỉ màn hẹp); màn rộng và tag ⏳ (KM-011) |
 | F-ITM-12 | **Thùng rác**: xem, khôi phục item đã xoá trong 30 ngày; *Xoá vĩnh viễn* từng item hoặc *Dọn thùng rác*; tự xoá trắng khi quá 30 ngày | P1 | 🆕 |
 | F-ITM-13 | Badge ⚠ cho item có xung đột đồng bộ, **tô sáng đúng field/thuộc tính bị xung đột**, kèm nút "Đã xử lý" | P1 | 🆕 |
 | F-ITM-14 | Hiện chip "Dùng chung: uat, staging (+1 project khác)" trong chi tiết item | P1 | ✅ |
@@ -66,7 +66,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | ID | Chức năng | Ưu tiên | Trạng thái |
 |---|---|---|---|
 | F-VIEW-01 | Các bộ lọc: Tất cả · Chưa gán · Sắp hết hạn · theo Project · theo Env | P1 | ✅ |
-| F-VIEW-02 | Tìm kiếm theo tiêu đề, field không phải secret, ghi chú, tag (Cmd/Ctrl+K) | P1 | ✅ |
+| F-VIEW-02 | Tìm kiếm theo tiêu đề, field không phải secret, ghi chú, tag (Cmd/Ctrl+K) | P1 | ✅ trừ tag; tìm theo tag ⏳ (KM-011) |
 | F-VIEW-03 | Copy field (xoá clipboard sau 30 giây), hiện/ẩn secret | P1 | ✅ |
 | F-VIEW-04 | Mở URL trong tab mới | P1 | ✅ |
 | F-VIEW-05 | Gần đây/yêu thích ở màn hình chính trên mobile | P2 | ✅ |
@@ -81,7 +81,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-DATA-01 | Tải backup đã mã hoá (`keymesh-backup`), chọn một hoặc tất cả vault | P1 | ✅ (v1 là chính file) → 🆕 |
 | F-DATA-02 | Import backup v2 vào vault đang chọn hoặc vault mới | P1 | 🆕 |
 | F-DATA-03 | **Export sang Bitwarden JSON** (dạng tổ chức) **theo từng vault**: mỗi cặp `Project/env` thành một collection, item dùng chung có nhiều `collectionIds`. Field `otp` đầu tiên của item login thành `login.totp`; các field còn lại thành custom field | P2 | 🆕 |
-| F-DATA-04 | Export plaintext JSON/CSV, phải nhập lại mật khẩu và đọc cảnh báo | P3 | 🆕 |
+| F-DATA-04 | Export plaintext JSON/CSV, phải nhập lại mật khẩu và đọc cảnh báo | P3 | ⏳ (KM-011) |
 | F-DATA-05 | Nhật ký hoạt động (đăng nhập, thiết bị, lỗi xung đột) | P3 | 🆕 |
 | F-DATA-06 | **Bản sao tự động ra file** (chỉ Chromium desktop): chọn file một lần, app tự ghi đè `keymesh-backup` sau mỗi lần lưu/sync; chỉ ghi, không đọc để sync; báo khi cần cấp lại quyền | P2 | 🆕 |
 
@@ -94,7 +94,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-PWA-03 | Báo khi có phiên bản app mới và cho bấm để tải lại | P2 | ✅ |
 | F-PWA-04 | Giao diện mobile riêng (xem bên dưới) | P1 | ✅ một phần: màn đa nhiệm vẫn lộ nội dung trên giả lập Android và iOS, đã chấp nhận cho M2 (04, KM-012) |
 | F-PWA-05 | Giao diện sáng/tối theo hệ thống | P1 | ✅ |
-| F-PWA-06 | Share target: chia sẻ link từ app khác vào để tạo nhanh item `doc` (chỉ Android) | P3 | ⏳ |
+| F-PWA-06 | Share target: chia sẻ link từ app khác vào để tạo nhanh item `doc` (chỉ Android) | P3 | ✖ (KM-011) |
 
 ---
 
