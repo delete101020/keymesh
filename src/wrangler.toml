@@ -1,0 +1,11 @@
+name = "keymesh"
+compatibility_date = "2026-10-01"
+pages_build_output_dir = "public"
+
+# ALLOWED_ORIGINS, REGISTRATION_TOKEN, SERVER_SECRET: Pages environment settings, never in this file.
+# Locally `pages dev` ignores the bindings below (KM-005): `npm run dev:server` passes them as flags.
+[[d1_databases]]
+binding = "DB"
+database_name = "keymesh"
+database_id = "00000000-0000-4000-8000-000000000005" # placeholder until KM-006 creates the real database
+migrations_dir = "migrations"

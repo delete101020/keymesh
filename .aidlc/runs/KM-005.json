@@ -6,58 +6,123 @@
     "epic": "KM-005"
   },
   "startedAt": "2026-10-30T04:44:57.000Z",
-  "updatedAt": "2026-10-30T04:44:57.000Z",
-  "currentStepIdx": 0,
-  "status": "running",
+  "updatedAt": "2026-11-02T00:11:29.352Z",
+  "currentStepIdx": 5,
+  "status": "completed",
   "steps": [
     {
       "stepIdx": 0,
       "agent": "aidlc-native-originator",
       "name": "intent",
       "revision": 1,
-      "status": "awaiting_work",
+      "status": "approved",
       "startedAt": "2026-10-30T04:44:57.000Z",
-      "artifactsProduced": []
+      "artifactsProduced": [
+        "docs/epics/KM-005/artifacts/intent.md"
+      ],
+      "finishedAt": "2026-11-01T16:46:40.839Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-01T16:46:40.839Z",
+          "revision": 1
+        }
+      ]
     },
     {
       "stepIdx": 1,
       "agent": "aidlc-native-product-owner",
       "name": "spec",
       "revision": 1,
-      "status": "pending",
-      "artifactsProduced": []
+      "status": "approved",
+      "artifactsProduced": [
+        "docs/epics/KM-005/artifacts/spec.md"
+      ],
+      "startedAt": "2026-11-01T16:46:40.839Z",
+      "finishedAt": "2026-11-01T16:55:11.397Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-01T16:55:11.397Z",
+          "revision": 1
+        }
+      ]
     },
     {
       "stepIdx": 2,
       "agent": "aidlc-native-engineer",
       "name": "build-plan",
       "revision": 1,
-      "status": "pending",
-      "artifactsProduced": []
+      "status": "approved",
+      "artifactsProduced": [
+        "docs/epics/KM-005/artifacts/plan.md"
+      ],
+      "startedAt": "2026-11-01T16:55:11.397Z",
+      "finishedAt": "2026-11-01T17:07:13.819Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-01T17:07:13.819Z",
+          "revision": 1
+        }
+      ]
     },
     {
       "stepIdx": 3,
       "agent": "aidlc-native-engineer",
       "name": "implement",
       "revision": 1,
-      "status": "pending",
-      "artifactsProduced": []
+      "status": "approved",
+      "artifactsProduced": [
+        "docs/epics/KM-005/artifacts/implement.md"
+      ],
+      "startedAt": "2026-11-01T17:07:13.819Z",
+      "finishedAt": "2026-11-01T22:00:42.986Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-01T22:00:42.986Z",
+          "revision": 1
+        }
+      ]
     },
     {
       "stepIdx": 4,
       "agent": "aidlc-native-verifier",
       "name": "verify",
       "revision": 1,
-      "status": "pending",
-      "artifactsProduced": []
+      "status": "approved",
+      "artifactsProduced": [
+        "docs/epics/KM-005/artifacts/verify.md"
+      ],
+      "startedAt": "2026-11-01T22:00:42.986Z",
+      "finishedAt": "2026-11-01T22:33:05.386Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-01T22:33:05.386Z",
+          "revision": 1
+        }
+      ]
     },
     {
       "stepIdx": 5,
       "agent": "aidlc-native-reviewer",
       "name": "review",
       "revision": 1,
-      "status": "pending",
-      "artifactsProduced": []
+      "status": "approved",
+      "artifactsProduced": [
+        "docs/epics/KM-005/artifacts/review.md"
+      ],
+      "startedAt": "2026-11-01T22:33:05.386Z",
+      "finishedAt": "2026-11-02T00:11:29.352Z",
+      "history": [
+        {
+          "kind": "approve",
+          "at": "2026-11-02T00:11:29.352Z",
+          "revision": 1
+        }
+      ]
     }
   ]
 }

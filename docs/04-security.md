@@ -37,11 +37,11 @@
 
 ## Xác thực và phiên đăng nhập
 
-- **Đăng ký:** chỉ mở khi có biến môi trường `REGISTRATION_TOKEN`. Sau khi tạo xong tài khoản thì xoá biến này để đóng đăng ký.
+- **Đăng ký:** chỉ mở khi có biến môi trường `REGISTRATION_TOKEN` dài ít nhất 32 ký tự, so sánh constant-time, xét trước mọi kiểm tra nội dung nên không dò được username qua `409`. Không có giới hạn số lần thử cho token này, nên độ dài là phần bảo vệ. Sau khi tạo xong tài khoản thì xoá biến này để đóng đăng ký.
 - **Đăng nhập:** so sánh `SHA-256(authKey)` với `auth_hash` theo kiểu **constant-time**.
-- **Rate limit:** 5 lần sai trong 15 phút cho mỗi username, 20 lần mỗi IP, sau đó khoá 15 phút. Mỗi lần sai đều ghi `dt_audit_log`.
-- **Prelogin:** trả về `kdf` cho username không tồn tại bằng salt giả, sinh tất định từ `HMAC(secret, username)`, để không lộ username nào có thật.
-- **Session:** gửi qua header `Authorization: Bearer <token>`, hạn trượt 30 ngày, kiểm tra `security_stamp` mỗi request. Màn *Thiết bị* cho phép thu hồi từng session.
+- **Rate limit:** 5 lần sai trong 15 phút cho mỗi username, 20 lần mỗi IP, sau đó khoá 15 phút. Áp dụng như nhau cho username không tồn tại; IPv6 tính theo /64; IP chỉ lấy từ `CF-Connecting-IP`. Khoá chỉ chặn đăng nhập mới, không ảnh hưởng phiên đang có. Ghi mỗi lần sai vào `dt_audit_log` chỉ có từ KM-009; trước đó lần đăng nhập sai không để lại dấu vết để xem lại.
+- **Prelogin:** trả về `kdf` cho username không tồn tại bằng salt giả 16B, sinh tất định từ `HMAC(SERVER_SECRET, nhãn + username chữ thường)`, để không lộ username nào có thật. Thiếu bí mật thì trả `500`, không có giá trị mặc định.
+- **Session:** gửi qua header `Authorization: Bearer <token>`, hạn trượt 30 ngày, kiểm tra `security_stamp` mỗi request. Màn *Thiết bị* cho phép thu hồi từng session (từ KM-009; trước đó chưa thu hồi được phiên của máy bị mất, chưa đổi được master password).
 - **Không dùng cookie**, nên không bị CSRF. Token nằm ở IndexedDB, rủi ro chính là XSS, được giảm bằng CSP chặt (xem bên dưới).
 - **Kiểm tra Origin:** server từ chối request có `Origin` ngoài `ALLOWED_ORIGINS`. Danh sách này là cấu hình, nên chuyển từ `pages.dev` sang domain riêng không phải sửa code (xem [02](02-architecture.md#cấu-hình-theo-domain)).
 - **Phân quyền theo vault:** mọi truy vấn vault đều lọc theo `user_id` của session. Id vault là 16 hex ngẫu nhiên; đoán được id cũng không truy cập được vault của người khác, và server trả cùng một lỗi `404` cho vault không tồn tại lẫn vault không thuộc mình. Vì id ngẫu nhiên không chứa thông tin gì, không cần băm hay HMAC id trước khi gửi.
@@ -70,7 +70,7 @@
 | Ẩn secret | Mặc định che, bấm vào để hiện, và tự che lại khi chuyển item |
 | OTP chung vault | Lưu secret TOTP cùng mật khẩu thì ai mở được vault là có đủ cả hai yếu tố đăng nhập. Chấp nhận được cho tài khoản thường (1Password, Bitwarden cũng cho làm vậy); tài khoản rất quan trọng (Cloudflare, email chính) nên giữ OTP ở app riêng. Màn xem chỉ hiện mã, không hiện secret |
 | Camera khi quét QR | Chỉ bật trong lúc dialog quét đang mở, dừng track ngay khi đọc được hoặc đóng dialog; không lưu ảnh. `Permissions-Policy` để `camera=(self)`, các API khác vẫn tắt. CSP không cần đổi vì giải mã QR chạy trong trang |
-| Cache API | Service Worker **không** cache `/api/*`, và API trả `Cache-Control: no-store` |
+| Cache API | Service Worker **không** cache `/api/*`, và API trả `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`. API tự đặt các header này: `_headers` không áp dụng cho response của Functions (KM-005 Concern 12) |
 
 ## Mô hình mối đe doạ
 
@@ -81,10 +81,15 @@
 | Mất hoặc bị trộm điện thoại | Truy cập dữ liệu cục bộ | Dữ liệu mã hoá; tự khoá khi chuyển nền; passkey đòi sinh trắc học; thu hồi session từ máy khác | Nếu vault đang mở khi bị giật máy thì lộ đến khi tự khoá |
 | XSS | Đọc vault trong bộ nhớ, lấy token | CSP chặt, không có script bên thứ ba, escape output | — |
 | Tấn công MITM | — | HTTPS và HSTS từ Cloudflare | — |
-| Brute-force đăng nhập online | — | Rate limit và authKey 256 bit | — |
-| Xung đột đồng bộ làm mất dữ liệu | — | Gộp ba chiều theo field, lưu bản thua vào `history`, thùng rác 30 ngày, cùng 30 snapshot trên server cho mỗi vault | — |
+| Brute-force đăng nhập online | — | Rate limit và authKey 256 bit | Biết username là khoá được đăng nhập mới của chủ tài khoản 15 phút, gọi lại mỗi 15 phút thì khoá mãi. Phiên đang có và mở khoá cục bộ không bị ảnh hưởng. Originator chấp nhận, giữ ngưỡng (KM-005 Concern 1) |
+| Dò id vault | Người có phiên hợp lệ biết một id đang được dùng, qua `409 vault_exists` | Đọc và ghi vẫn trả cùng một `404`; id 64 bit ngẫu nhiên, không chứa thông tin | Originator chấp nhận vì không lộ nội dung, chỉ người đã đăng nhập thấy được (KM-005 Concern 2) |
+| Xung đột đồng bộ làm mất dữ liệu | — | Gộp ba chiều theo field, lưu bản thua vào `history`, thùng rác 30 ngày, cùng 30 snapshot trên server cho mỗi vault (từ KM-009) | Trước KM-009, lần ghi đè không khôi phục được từ server |
 | Lỡ tay xoá item | — | Thùng rác giữ nguyên nội dung 30 ngày trước khi xoá trắng | Sau khi xoá trắng thì chỉ còn snapshot hoặc file backup |
 | Quên master password | Mất toàn bộ dữ liệu | Passkey trên thiết bị đã đăng ký vẫn mở được, dùng để đặt mật khẩu mới; nên tải backup định kỳ | Có thể thêm *recovery key* in ra giấy (xem roadmap) |
+
+## Điều kiện trước khi đưa secret thật lên server
+
+Khi KM-006 xong, app đã đồng bộ được nhưng KM-009 (M5) chưa có. Trong khoảng đó: chưa thu hồi được phiên của máy bị mất, chưa đổi được master password, lần ghi đè không khôi phục được từ server, không có nhật ký hoạt động. **Originator xem lại các điểm này trước lần đầu đưa secret thật lên server** (KM-005 Concern 18). Khi có epic nâng số vòng KDF (đổi mật khẩu ở KM-009 hoặc về sau) thì xem lại Concern 7: tài khoản có `iter` khác 600 000 sẽ tự lộ là có thật qua prelogin.
 
 ## Lưu ý tuân thủ
 

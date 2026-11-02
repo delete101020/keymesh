@@ -40,8 +40,8 @@ Nguyên tắc: **mọi thao tác mã hoá và giải mã đều diễn ra trên 
 | **mirror.js** | Bản sao tự động chỉ ghi ra file qua File System Access API (chỉ Chromium); không bao giờ đọc file để sync |
 | **config.js** | Cấu hình theo domain (xem [Cấu hình theo domain](#cấu-hình-theo-domain)) |
 | **Service Worker** | Cache app shell theo version để mở được khi offline; **không** cache `/api/*` |
-| **Pages Functions** | API REST trong [06-api.md](06-api.md): auth, vault, sessions, snapshots |
-| **D1** | Lưu user, blob, session, snapshot, audit. Xem [03-data-model.md](03-data-model.md) |
+| **Pages Functions** | API REST trong [06-api.md](06-api.md): auth, vault từ KM-005; sessions, snapshots từ KM-009 |
+| **D1** | Lưu user, blob, session; snapshot và audit có bảng từ KM-005 nhưng chỉ được ghi từ KM-009. Xem [03-data-model.md](03-data-model.md) |
 
 ## Luồng chính
 
@@ -93,11 +93,11 @@ sequenceDiagram
 | Backend | Cloudflare Pages Functions (Workers runtime) |
 | Database | Cloudflare D1 |
 | Triển khai | `wrangler` CLI; repo git cá nhân (có thể dùng Pages tự deploy từ GitHub) |
-| Test | `node --test` cho `merge.js` và `crypto.js`; Playwright (tuỳ chọn) cho E2E |
+| Test | `node --test`: `npm test` (lõi, app), `npm run test:e2e` (Chrome qua DevTools Protocol), `npm run test:server` (Pages Functions trên `wrangler pages dev` thật, D1 cục bộ) |
 
 ## Cấu trúc repo
 
-Toàn bộ mã sản phẩm nằm trong `src/`, và `src/` là *root directory* của project Pages (`wrangler pages dev` chạy từ `src/`; trên dashboard đặt Root directory = `src`). Thư mục gốc chỉ còn tài liệu, tham chiếu và test.
+Toàn bộ mã sản phẩm nằm trong `src/`, và `src/` là *root directory* của project Pages (`wrangler pages dev` chạy từ `src/`; trên dashboard đặt Root directory = `src`). **Đã thấy ở `wrangler` 4.156.0 (KM-005):** `pages dev` bỏ qua binding D1 và `[vars]` trong `wrangler.toml`, chưa rõ vì sao, nên chạy cục bộ phải truyền bằng cờ `--d1`, `--binding` hoặc tệp `src/.dev.vars`; dùng `npm run dev:server`. Trên Cloudflare thật phải kiểm lại ở KM-006. Thư mục gốc chỉ còn tài liệu, tham chiếu và test.
 
 ```
 keymesh/
@@ -136,24 +136,27 @@ keymesh/
 │   │       └── config.js      # cấu hình theo domain
 │   ├── functions/
 │   │   └── api/
-│   │       └── [[route]].js   # router API (hoặc tách file theo nhóm)
+│   │       ├── [[route]].js   # điểm vào duy nhất: Origin, route, token, id rồi tới handler
+│   │       └── _http.js, _validate.js, _secrets.js, _auth.js, _rate-limit.js, _vaults.js
 │   └── migrations/
 │       └── 0001_init.sql
-├── test/                      # *.test.js, chạy bằng node --test; test/e2e/*.e2e.js chạy bằng npm run test:e2e
-└── testkit/                   # helper, vector, runner trình duyệt, serve.mjs (phục vụ cục bộ, đọc header từ `_headers`), sw-version.mjs (ghi VERSION và SHELL vào sw.js), gen-icons.mjs, e2e/ (harness CDP); không được phục vụ
+├── test/                      # *.test.js, chạy bằng node --test; test/e2e/*.e2e.js: npm run test:e2e; test/server/*.server.js: npm run test:server
+└── testkit/                   # helper, vector, runner trình duyệt, serve.mjs (phục vụ cục bộ, đọc header từ `_headers`), sw-version.mjs (ghi VERSION và SHELL vào sw.js), gen-icons.mjs, e2e/ (harness CDP), wrangler-server.mjs (server thật cho test), dev-server.mjs (`npm run dev:server`); không được phục vụ
 ```
 
 ## Triển khai và vận hành
 
 - **Môi trường:** chỉ có `prod`, cùng một project `preview` của Pages để thử với một D1 riêng.
 - **Domain:** dùng `*.pages.dev` trước. Code không hard-code domain nào, để có thể chuyển sang domain riêng bằng cách đổi cấu hình (xem bên dưới). Khi có domain riêng, có thể đặt thêm **Cloudflare Access** (Zero Trust free) phía trước để có thêm một lớp đăng nhập. Xem [04-security.md](04-security.md).
-- **Backup:** server giữ 30 snapshot gần nhất cho mỗi vault. Người dùng có thể tải **bản backup đã mã hoá** về bất cứ lúc nào, và trên Chromium có thể bật **bản sao tự động ra file**.
+- **Backup:** từ KM-009, server giữ 30 snapshot gần nhất cho mỗi vault; trước đó server chỉ có bản mới nhất và lần ghi đè không khôi phục được từ server. Người dùng có thể tải **bản backup đã mã hoá** về bất cứ lúc nào, và trên Chromium có thể bật **bản sao tự động ra file**.
 
 ### Cấu hình theo domain
 
 | Ở đâu | Giá trị | Ghi chú |
 |---|---|---|
 | Server (`wrangler.toml` / biến môi trường Pages) | `ALLOWED_ORIGINS` | Danh sách origin được phép gọi API, ví dụ `https://keymesh.pages.dev,https://vault.example.com`. Server kiểm tra header `Origin` |
+| Server (bí mật) | `REGISTRATION_TOKEN` | Mở đăng ký khi có giá trị dài ít nhất 32 ký tự; xoá sau khi tạo xong tài khoản để đóng lại |
+| Server (bí mật) | `SERVER_SECRET` | Khoá HMAC cho salt giả, hash giả và khoá bộ đếm lần sai. Thiếu thì prelogin và đăng nhập trả `500`, không có mặc định. **Không đổi trừ khi cần:** đổi thì salt giả đổi, ai đã ghi lại salt cũ sẽ biết username nào không có thật, và bộ đếm đang chạy về 0 |
 | Server | `RP_ID` | Không dùng ở giai đoạn này (passkey chỉ mở khoá cục bộ), để sẵn cho khi passkey dùng để đăng nhập server |
 | Client (`config.js`) | Origin và RP ID của WebAuthn | Lấy từ `location.origin` và `location.hostname` lúc chạy, không hard-code |
 | `_headers` | CSP | Chỉ dùng `'self'`, nên không phụ thuộc domain |
