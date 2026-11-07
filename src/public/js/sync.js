@@ -143,6 +143,9 @@ export function createSync({
       const sent = row.current.envelope;
       const put = await api.putVault(token, item.id, row.current.version, sent);
       alive();
+      // The cached list no longer matches the ETag it came with: the next list is a full one, or a server
+      // rolled back to exactly that older list would answer 304 and go unnoticed (plan decision 1).
+      if (put.ok || put.conflict) etag = null;
       if (put.ok) {
         await session.commitPushed(item.id, sent, put.body.version);
         item.version = put.body.version;

@@ -404,3 +404,15 @@ test('KM-006 FR30 a vault of 1 000 000 bytes or more is flagged, not blocked', a
   assert.equal(a.sync.status.large, true);
   assert.equal(a.sync.status.vaults[0].large, true);
 });
+
+test('KM-006 plan decision 1 a server rolled back to the list it had before our push is noticed, not hidden by a 304', async () => {
+  const { server, a, b, item, id } = await pair();
+  b.sync.stop();
+  await a.save(setPass(item.id, 'v2'));
+  await a.sync.syncNow();
+  const v = server.vaults.get(id);
+  assert.equal(v.version, 2);
+  v.version = 1; // restored from an old backup
+  await a.sync.syncNow();
+  assert.equal(a.sync.status.vaults[0].error, 'server-older');
+});

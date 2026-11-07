@@ -1,7 +1,8 @@
 // Two browsers on one real server (KM-006 FR40): a `wrangler pages dev` serving the app and the API on one
 // origin, and a Chrome profile per device, so each has its own IndexedDB, Service Worker and network. Faults
 // come from outside the app: CDP for the network, the server's SQLite for its data (NFR14).
-import { startApp } from './e2e/driver.mjs';
+import { addProject, createItem, PASSWORD, setup, startApp } from './e2e/driver.mjs';
+import { REGISTRATION_TOKEN } from './wrangler-server.mjs';
 import { startServer } from './wrangler-server.mjs';
 import { decryptVault, deriveFromPassword, encryptVault, unwrapAccountKey, unwrapVaultKey, generateVaultKey, wrapVaultKey, encryptVaultMeta } from '../src/public/js/core/crypto.js';
 import { createVault } from '../src/public/js/core/model.js';
@@ -155,4 +156,43 @@ export async function nodeDevice(server, username, password) {
       });
     },
   };
+}
+
+// --- shared by the flow, failure, cadence, privacy, stress and perf files ---------------------------
+
+// Going to the background and back: the app syncs at once on coming back (FR16).
+export async function nudge(page) {
+  await page.setBackground(true);
+  await page.setBackground(false);
+}
+
+export const openItem = (page, title) => page.click(title, { exact: false, selector: '.list .row' });
+
+// Two fresh devices on `env`'s server, one account, one item, both open and clean.
+export async function pairOn(env, { title = 'Partner X', values = { Username: 'svc-user', Password: 'pw-base' }, project = null } = {}) {
+  const tag = `${process.pid}-${Math.random().toString(36).slice(2, 7)}`;
+  const A = (await env.add(`A-${tag}`)).page;
+  await setup(A);
+  if (project) await addProject(A, project.name, project.envs);
+  if (title) await createItem(A, { title, values });
+  const username = newUsername('pair');
+  const err = await register(A, { username, token: REGISTRATION_TOKEN, password: PASSWORD });
+  if (err) throw new Error(`register: ${err}`);
+  await waitClean(A);
+  const B = (await env.add(`B-${tag}`)).page;
+  if ((await login(B, { username, password: PASSWORD })) !== 'main') throw new Error('login B');
+  return { A, B, username };
+}
+
+// API calls a page made after index `from` of its request log, as "METHOD /path" from the response log.
+export const responsesSince = (page, from, filter = () => true) => page.responses.slice(from).filter((r) => r.url && new URL(r.url).pathname.startsWith('/api/') && filter(r));
+
+export async function editItem(page, title, { fields = {}, notes, newTitle } = {}) {
+  await openItem(page, title);
+  await page.click('Sửa');
+  for (const [label, v] of Object.entries(fields)) await page.fill(`Giá trị ${label}`, v);
+  if (notes !== undefined) await page.fill('Ghi chú', notes);
+  if (newTitle !== undefined) await page.fill('Tiêu đề', newTitle);
+  await page.click('Lưu');
+  await page.waitFor(`!document.querySelector('[data-fk=edit-title]')`, { what: 'saved' });
 }
