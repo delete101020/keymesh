@@ -22,6 +22,7 @@ import {
   setScopeSelection,
   draftErrors,
   commitDraft,
+  StaleDraftError,
   forkItem,
 } from '../src/public/js/vault-ops.js';
 import { liveEnvs, liveProjects, orderedFields, queryItems } from '../src/public/js/vault-query.js';
@@ -220,4 +221,94 @@ test('KM-003 AC34 FR39 a save that does not touch a field leaves its bytes as th
   const f = item.fields.find((x) => x.label === 'C');
   assert.equal(f.v, 'a\r\nb\r\n');
   assert.equal(f.file, 'c.ovpn');
+});
+
+// --- KM-006 FR22: saving a draft writes only what the user changed ---------------------------------
+
+function opened() {
+  const v = createVault('0123456789abcdef');
+  const p = addProject(v, { name: 'PaymentGW' }, ctx(1));
+  const uat = addEnv(v, p.id, { name: 'uat' }, ctx(1));
+  const prod = addEnv(v, p.id, { name: 'prod' }, ctx(1));
+  const item = createItem(v, 'login', { title: 'Partner X', notes: 'n0', scopes: [uat.id] }, ctx(2));
+  const draft = editDraft(item);
+  const baseline = JSON.parse(JSON.stringify(draft));
+  const byLabel = (it, label) => it.fields.find((f) => f.label === label);
+  const dField = (label) => draft.fields.find((f) => f.label === label);
+  return { v, item, draft, baseline, uat, prod, byLabel, dField };
+}
+// What sync does meanwhile: another device's save lands on the vault in memory.
+const remote = (v, id, patch) => updateItem(v, id, patch, ctx(5, 'd_bbbbbbbbbbbbbbbb'));
+
+test('KM-006 AC28 FR22 a value received while editing and not touched stays; the edited one is the user\'s; no mark', () => {
+  const { v, item, draft, baseline, byLabel, dField } = opened();
+  remote(v, item.id, { fields: [{ id: byLabel(item, 'Username').id, v: 'from B' }, { id: byLabel(item, 'Password').id }, { id: byLabel(item, 'URL').id }] });
+  dField('Password').v = 'mine';
+  commitDraft(v, draft, ctx(6), baseline);
+  assert.equal(byLabel(item, 'Username').v, 'from B');
+  assert.equal(byLabel(item, 'Password').v, 'mine');
+  assert.equal(item.conflict, null);
+  assert.deepEqual(validateVault(v), { ok: true });
+});
+
+test('KM-006 AC29 FR22 the same field changed on both: the user\'s value wins, the received one is in history', () => {
+  const { v, item, draft, baseline, byLabel, dField } = opened();
+  remote(v, item.id, { fields: item.fields.map((f) => ({ id: f.id, v: f.label === 'Password' ? 'from B' : f.v })) });
+  dField('Password').v = 'mine';
+  commitDraft(v, draft, ctx(6), baseline);
+  assert.equal(byLabel(item, 'Password').v, 'mine');
+  assert.equal(item.history[0].fields.find((f) => f.label === 'Password').v, 'from B');
+});
+
+test('KM-006 FR22 title, notes and envs: only what changed; envs added elsewhere stay', () => {
+  const { v, item, draft, baseline, uat, prod } = opened();
+  remote(v, item.id, { notes: 'from B', scopes: [uat.id, prod.id] });
+  draft.title = '  Partner Y ';
+  commitDraft(v, draft, ctx(6), baseline);
+  assert.deepEqual([item.title, item.notes, item.scopes], ['Partner Y', 'from B', [uat.id, prod.id]]);
+  const d2 = editDraft(item);
+  const b2 = JSON.parse(JSON.stringify(d2));
+  d2.scopes = d2.scopes.filter((id) => id !== uat.id);
+  commitDraft(v, d2, ctx(7), b2);
+  assert.deepEqual(item.scopes, [prod.id]);
+});
+
+test('KM-006 FR22 fields: add, delete and reorder by the user, a field added elsewhere is kept', () => {
+  const { v, item, draft, baseline, byLabel } = opened();
+  remote(v, item.id, { fields: [...item.fields.map((f) => ({ id: f.id })), { label: 'From B', kind: 'text', v: 'b' }] });
+  draft.fields = draft.fields.filter((f) => f.label !== 'URL');
+  draft.fields.reverse();
+  draft.fields.push(blankDraftField());
+  draft.fields.at(-1).label = 'Mine';
+  commitDraft(v, draft, ctx(6), baseline);
+  const live = item.fieldOrder.map((id) => item.fields.find((f) => f.id === id).label);
+  assert.deepEqual(live, ['Password', 'Username', 'Mine', 'From B']);
+  assert.notEqual(byLabel(item, 'URL').deletedAt, null);
+  assert.deepEqual(validateVault(v), { ok: true });
+});
+
+test('KM-006 FR22 a field deleted elsewhere: ignored if untouched, a stale draft if the user edited it', () => {
+  const a = opened();
+  remote(a.v, a.item.id, { fields: a.item.fields.filter((f) => f.label !== 'URL').map((f) => ({ id: f.id })) });
+  a.dField('Password').v = 'mine';
+  commitDraft(a.v, a.draft, ctx(6), a.baseline);
+  assert.equal(a.byLabel(a.item, 'Password').v, 'mine');
+  assert.notEqual(a.byLabel(a.item, 'URL').deletedAt, null);
+  const b = opened();
+  remote(b.v, b.item.id, { fields: b.item.fields.filter((f) => f.label !== 'URL').map((f) => ({ id: f.id })) });
+  b.dField('URL').v = 'https://mine.example';
+  const before = JSON.stringify(b.v);
+  assert.throws(() => commitDraft(b.v, b.draft, ctx(6), b.baseline), StaleDraftError);
+  assert.equal(JSON.stringify(b.v), before);
+});
+
+test('KM-006 FR22 an item gone elsewhere (trash) is a stale draft; nothing changed saves nothing', async () => {
+  const { trashItem } = await import('../src/public/js/core/model.js');
+  const a = opened();
+  trashItem(a.v, a.item.id, ctx(5, 'd_bbbbbbbbbbbbbbbb'));
+  assert.throws(() => commitDraft(a.v, a.draft, ctx(6), a.baseline), StaleDraftError);
+  const b = opened();
+  const rev = b.item.rev;
+  commitDraft(b.v, b.draft, ctx(6), b.baseline);
+  assert.equal(b.item.rev, rev);
 });

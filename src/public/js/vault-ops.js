@@ -144,15 +144,64 @@ export function draftErrors(draft) {
   return errors.title || Object.keys(errors.fields).length ? errors : null;
 }
 
-// Creates or updates from a draft that passed draftErrors. Returns the item.
-export function commitDraft(vault, draft, ctx) {
+// The item changed under an open form in a way the draft cannot be applied to: the item or a field the
+// user edited is gone (KM-006 FR22). The draft stays on screen.
+export class StaleDraftError extends Error {
+  constructor() {
+    super('The item changed on another device');
+    this.name = 'StaleDraftError';
+  }
+}
+
+const fieldOf = ({ id, label, kind, v, file }) => ({ ...(id ? { id } : {}), label, kind, v, ...(id ? { file: file ?? null } : file ? { file } : {}) });
+const sameDraftField = (a, b) => a.label === b.label && a.kind === b.kind && a.v === b.v && (a.file ?? null) === (b.file ?? null);
+
+// Only what the user changed since the form opened (`baseline`, the draft as it was then), applied to the
+// item as it is now: a value sync brought in meanwhile and the user did not touch stays (FR22, AC28); one
+// the user did change wins, and updateItem puts the value before it in history (AC29).
+function draftPatch(item, draft, baseline) {
+  const patch = {};
+  if (draft.title !== baseline.title) patch.title = draft.title.trim();
+  if (draft.notes !== baseline.notes) patch.notes = draft.notes;
+  if ((draft.expires || null) !== (baseline.expires || null)) patch.expires = draft.expires || null;
+  const added = draft.scopes.filter((id) => !baseline.scopes.includes(id));
+  const removed = baseline.scopes.filter((id) => !draft.scopes.includes(id));
+  if (added.length || removed.length) patch.scopes = [...new Set([...item.scopes, ...added])].filter((id) => !removed.includes(id));
+
+  const before = new Map(baseline.fields.map((f) => [f.key, f]));
+  const now = new Set(draft.fields.map((f) => f.key));
+  const live = new Map(orderedFields(item).map((f) => [f.id, f]));
+  const deleted = new Set(baseline.fields.filter((f) => f.id && !now.has(f.key)).map((f) => f.id));
+  const edited = draft.fields.filter((f) => !f.id || !before.has(f.key) || !sameDraftField(f, before.get(f.key)));
+  if (!edited.length && !deleted.size) return patch;
+  if (edited.some((f) => f.id && !live.has(f.id))) throw new StaleDraftError();
+  const ids = (list) => list.filter((f) => f.id).map((f) => f.id);
+  const reordered = ids(baseline.fields).filter((id) => !deleted.has(id)).join() !== ids(draft.fields).join();
+  const entry = (f) => (edited.includes(f) ? fieldOf(f) : { id: f.id });
+  const kept = [...live.keys()].filter((id) => !deleted.has(id));
+  if (reordered) {
+    const fromDraft = draft.fields.filter((f) => !f.id || live.has(f.id)).map(entry);
+    const theirs = kept.filter((id) => !draft.fields.some((f) => f.id === id)).map((id) => ({ id }));
+    patch.fields = [...fromDraft, ...theirs];
+  } else {
+    const byId = new Map(draft.fields.filter((f) => f.id).map((f) => [f.id, f]));
+    patch.fields = [...kept.map((id) => (byId.has(id) ? entry(byId.get(id)) : { id })), ...draft.fields.filter((f) => !f.id).map(fieldOf)];
+  }
+  return patch;
+}
+
+// Creates or updates from a draft that passed draftErrors. Returns the item. `baseline` is the draft as
+// the form opened; without it every value of the draft is written.
+export function commitDraft(vault, draft, ctx, baseline = null) {
   const common = { title: draft.title.trim(), notes: draft.notes, expires: draft.expires || null, scopes: [...draft.scopes] };
   if (draft.id === null) {
     const fields = draft.fields.map(({ label, kind, v, file }) => ({ label, kind, v, ...(file ? { file } : {}) }));
     return createItem(vault, draft.type, { ...common, fields, tags: [...draft.tags] }, ctx);
   }
-  const fields = draft.fields.map(({ id, label, kind, v, file }) => ({ ...(id ? { id } : {}), label, kind, v, ...(id ? { file: file ?? null } : file ? { file } : {}) }));
-  return updateItem(vault, draft.id, { ...common, fields }, ctx);
+  const item = vault.items.find((i) => i.id === draft.id);
+  if (!item || item.deletedAt !== null || item.purgedAt !== null) throw new StaleDraftError();
+  if (baseline) return updateItem(vault, draft.id, draftPatch(item, draft, baseline), ctx);
+  return updateItem(vault, draft.id, { ...common, fields: draft.fields.map(fieldOf) }, ctx);
 }
 
 // New item with the current values, new field ids and empty history, only in `envId`; the original

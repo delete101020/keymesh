@@ -94,13 +94,14 @@ export function queryItems(vault, filter, query, now) {
 
 export function filterCounts(vault, now) {
   const items = liveItems(vault);
-  const counts = { all: items.length, unassigned: 0, expiring: 0, projects: new Map(), envs: new Map() };
+  const counts = { all: items.length, unassigned: 0, expiring: 0, conflicts: 0, projects: new Map(), envs: new Map() };
   const envs = liveEnvs(vault);
   const envById = new Map(envs.map((e) => [e.id, e]));
   for (const item of items) {
     const here = item.scopes.map((id) => envById.get(id)).filter(Boolean);
     if (here.length === 0) counts.unassigned++;
     if (isExpiring(item, now)) counts.expiring++;
+    if (item.conflict !== null) counts.conflicts++; // KM-006 FR35: items only, projects and envs have no mark
     for (const e of new Set(here)) counts.envs.set(e.id, (counts.envs.get(e.id) ?? 0) + 1);
     for (const pid of new Set(here.map((e) => e.projectId))) counts.projects.set(pid, (counts.projects.get(pid) ?? 0) + 1);
   }

@@ -176,3 +176,14 @@ test('KM-004 AC12 favourites: starred live items by title', () => {
   assert.deepEqual(favoriteItems(v).map((i) => i.title), ['a', 'z']);
   assert.equal(n.favorite, false);
 });
+
+test('KM-006 AC45 FR35 conflict count: live items with a mark only, trashed ones not', () => {
+  const v = createVault('00000000000000ad');
+  const mk = (title) => createItem(v, 'note', { title }, ctx());
+  const [a, b, c] = [mk('a'), mk('b'), mk('c')];
+  a.conflict = { at: 1, fields: [], attrs: ['title'] };
+  c.conflict = { at: 1, fields: [], attrs: ['deletedAt'] };
+  trashItem(v, c.id, ctx());
+  assert.equal(filterCounts(v, 0).conflicts, 1);
+  assert.equal(b.conflict, null);
+});
