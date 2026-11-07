@@ -413,6 +413,18 @@ export function restoreItemVersion(vault, itemId, entry, ctx) {
   }
 }
 
+// "Đã xử lý" (KM-006 FR37): drops the conflict mark and nothing else. No history entry and no clock moves,
+// since docs/05 does not count a change of `conflict` as an edit; rev and updatedAt move so the change is
+// saved and synced, and merge then drops the mark on the other side too.
+export function clearItemConflict(vault, itemId, ctx) {
+  stamp(ctx);
+  const item = liveItem(vault, itemId);
+  if (item.conflict === null) return item;
+  item.conflict = null;
+  touch(item, ctx);
+  return item;
+}
+
 export function trashItem(vault, itemId, ctx) {
   const c = stamp(ctx);
   const item = liveItem(vault, itemId);

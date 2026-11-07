@@ -102,6 +102,7 @@ Thao tác sửa **thay đổi vault tại chỗ** và trả về thực thể v�
 | `restoreItemVersion(vault, itemId, entry, ctx)` | Xem dưới |
 | `trashItem` / `restoreItem` | Đặt / bỏ `deletedAt`, cập nhật `clock.deletedAt`; nội dung giữ nguyên |
 | `purgeItem(vault, itemId, ctx)` | Đặt `purgedAt` (và `deletedAt` nếu chưa có), xoá trắng nội dung. Xem dưới |
+| `clearItemConflict(vault, itemId, ctx)` | "Đã xử lý" (KM-006 FR37): `conflict = null`, `rev + 1`, `updatedAt = ctx.now`. Không thêm bản lịch sử, không đổi `clock` hay nội dung, vì 05 không tính đổi `conflict` là sửa nội dung. Item không có đánh dấu thì không đổi gì. Item đã xoá trắng hoặc id không có thì `invalid`. Gộp với bên kia chưa đổi thì đánh dấu mất ở cả hai |
 | `validateVault(vault)` | `{ ok: true }` hoặc `{ ok: false, errors: [{ path, code, message }] }` |
 
 **Một lần lưu.** Với mọi thực thể: chỉ giá trị thật sự khác mới tính là đổi; nếu có đổi thì đồng hồ của đúng giá trị đó thành `{ at: ctx.now, dev: ctx.deviceId }`, `rev + 1`, `updatedAt = ctx.now`. Một lần lưu không đổi gì thì không tăng `rev`. Thao tác sửa hoặc thành công trọn vẹn, hoặc ném `KeymeshError` mà không để lại thay đổi nào trên vault: bên gọi không cần làm việc trên bản sao.
@@ -197,7 +198,7 @@ Các quy tắc chuẩn nằm ở [05-sync.md](05-sync.md) § "Thuật toán gộ
 | Epic | Cần từ lõi | Thao tác |
 |---|---|---|
 | KM-002 (merge) | Đồng hồ theo thuộc tính/field, lịch sử, tombstone, hình dạng vault | `clock` của project/env/item, `field.at`/`dev`, `history`, `HISTORY_MAX`, `deletedAt`/`purgedAt`, `updateItem` (cách một lần lưu ghi đồng hồ/lịch sử), `validateVault` cho kết quả gộp |
-| KM-006 (sync) | Gộp khi bị 409 và khi pull lúc đang dirty | `merge(base, local, remote)`; lỗi `invalid` nghĩa là một bản hỏng hoặc khác vault, không gộp |
+| KM-006 (sync) | Gộp khi bị 409 và khi pull lúc đang dirty; đăng ký, đăng nhập; "Đã xử lý" | `merge(base, local, remote)`; lỗi `invalid` nghĩa là một bản hỏng hoặc khác vault, không gộp. `deriveFromPassword` → `authKey`, `unwrapAccountKey`, `unlockWithAccountKey`, `decryptVault`, `clearItemConflict`; `KDF_MIN_ITER`/`KDF_MAX_ITER` kiểm trước khi dẫn xuất |
 | KM-008 (thùng rác) | Hiện bản lịch sử "đã bị xoá ở thiết bị khác", đánh dấu `deletedAt`/`purgedAt` | `DELETED_ELSEWHERE`, `item.conflict.attrs`, bảng xoá ở § `merge.js` |
 | KM-003 (app cục bộ) | Tạo tài khoản và vault mặc định, mở khoá offline, sửa và lưu, tạo item theo loại | `createAccount`, `unlockWithPassword`, `encryptVault`, `encryptVaultMeta`, `createItem`, `ITEM_TEMPLATES`, `ITEM_TYPES`, `FIELD_KINDS`, `newField`, `updateItem`, `restoreItemVersion`, `add*`/`update*`/`delete*`, `validateVault`, `newId('device')`. Không gọi `trashItem`/`restoreItem`/`purgeItem` (KM-008) |
 | KM-005 (server) | `authKey` để gửi, các envelope để lưu nguyên dạng, tham số `kdf` | `newKdf`, `deriveFromPassword` → `authKey`; dạng `wrappedAccountKey`, `record` (`wrappedVaultKey`, `meta`, `envelope`) ở trên; server chỉ lưu, không gọi thao tác giải mã nào |

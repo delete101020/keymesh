@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { merge } from '../src/public/js/core/merge.js';
 import {
+  clearItemConflict,
   HISTORY_MAX,
   ITEM_TYPES,
   FIELD_KINDS,
@@ -475,4 +476,47 @@ test('KM-003 AC24 FR27 25 saves keep the 20 newest versions', () => {
   for (let n = 0; n < 25; n++) updateItem(v, item.id, { title: `t${n}` }, ctx(T0 + 10 + n));
   assert.equal(item.history.length, 20);
   assert.equal(item.history[0].title, 't23');
+});
+
+// Two devices edit the same Password offline; merging gives a conflict on that field.
+function conflicted() {
+  const base = createVault('0123456789abcdef');
+  const item = createItem(base, 'login', { title: 'Partner X' }, ctx(T0));
+  const pass = item.fields.find((f) => f.label === 'Password');
+  const local = structuredClone(base);
+  const remote = structuredClone(base);
+  updateItem(local, item.id, { fields: item.fields.map((f) => ({ id: f.id, v: f === pass ? 'from A' : f.v })) }, ctx(T0 + 1, DEV_A));
+  updateItem(remote, item.id, { fields: item.fields.map((f) => ({ id: f.id, v: f === pass ? 'from B' : f.v })) }, ctx(T0 + 2, DEV_B));
+  const merged = merge(base, local, remote);
+  return { merged, id: item.id, passId: pass.id };
+}
+
+test('KM-006 AC46 FR37 clearItemConflict drops the mark only: same content, history and clocks; rev moves', () => {
+  const { merged, id, passId } = conflicted();
+  const item = merged.items[0];
+  assert.deepEqual(item.conflict.fields, [passId]);
+  const before = structuredClone(item);
+  clearItemConflict(merged, id, ctx(T0 + 10, DEV_A));
+  assert.equal(item.conflict, null);
+  assert.equal(item.rev, before.rev + 1);
+  assert.equal(item.updatedAt, T0 + 10);
+  for (const k of ['fields', 'history', 'clock', 'title', 'fieldOrder', 'scopes', 'tags']) assert.deepEqual(item[k], before[k], k);
+  assert.deepEqual(validateVault(merged), { ok: true });
+  const again = JSON.stringify(item);
+  clearItemConflict(merged, id, ctx(T0 + 11, DEV_A));
+  assert.equal(JSON.stringify(item), again, 'no mark, no change');
+  assert.throws(() => clearItemConflict(merged, 'i_ffffffffffffffff', ctx(T0 + 12)), hasCode('invalid'));
+  assert.throws(() => clearItemConflict(merged, id, null), hasCode('invalid'));
+});
+
+test('KM-006 AC46 FR37 cleared on one side and synced: the mark is gone on both, an edit alone keeps it', () => {
+  const { merged, id } = conflicted();
+  const local = structuredClone(merged);
+  clearItemConflict(local, id, ctx(T0 + 10, DEV_A));
+  const out = merge(merged, local, structuredClone(merged));
+  assert.equal(out.items[0].conflict, null);
+  assert.equal(out.items[0].history.length, merged.items[0].history.length);
+  const edited = structuredClone(merged);
+  updateItem(edited, id, { notes: 'edited, not resolved' }, ctx(T0 + 11, DEV_A));
+  assert.notEqual(merge(merged, edited, structuredClone(merged)).items[0].conflict, null);
 });
