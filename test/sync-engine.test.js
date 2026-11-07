@@ -88,6 +88,7 @@ test('KM-006 AC01 FR15 an account never registered makes no request at all', asy
 test('KM-006 FR16 NFR10 started: one list, then a poll every 50 s while in the foreground', async () => {
   const { server, clock, a } = await pair();
   assert.equal(a.sync.status.kind, STATUS.synced);
+  assert.ok(a.events.some((e) => e.kind === STATUS.syncing), 'the bar says a round is running (FR31)');
   assert.ok(clock.delays().includes(POLL_MS));
   const before = count(server, 'listVaults');
   await clock.advance(3 * POLL_MS + 10, async () => {

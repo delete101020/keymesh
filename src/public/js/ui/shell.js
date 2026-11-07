@@ -11,6 +11,7 @@ import { renderEdit } from './edit.js';
 import { openSettings } from './settings-dialog.js';
 import { bindNavHistory, narrowQuery } from './nav-history.js';
 import { registerPwa } from '../pwa.js';
+import { renderStatusBar, renderStatusDot } from './sync-status.js';
 
 const root = document.getElementById('root');
 const toastEl = document.getElementById('toast');
@@ -23,6 +24,9 @@ const app = createApp({
 let main = null;
 
 function buildMain() {
+  // KM-006 FR31: the sync status, as a dot in the header (narrow) and a bar at the bottom (wide).
+  const dot = h('span', { class: 'syncdot-slot' });
+  const bar = h('footer', { class: 'syncbar-slot', 'aria-label': 'Đồng bộ' });
   const search = h('input', {
     type: 'search',
     'aria-label': 'Tìm kiếm',
@@ -36,14 +40,15 @@ function buildMain() {
     h('div', { class: 'brand' }, h('span', { class: 'mark' }, icon('key')), h('span', null, 'KeyMesh')),
     h('div', { class: 'search' }, search, icon('search'), h('kbd', { 'aria-hidden': 'true' }, navigator.platform.startsWith('Mac') ? '⌘K' : 'Ctrl K')),
     h('span', { class: 'spacer' }),
+    dot,
     h('button', { 'aria-label': 'Cài đặt', fk: 'settings', on: { click: () => openSettings(app) } }, icon('gear')),
     h('button', { 'aria-label': 'Khoá', fk: 'lock', on: { click: () => app.lock() } }, icon('lock')));
   const side = h('nav', { class: 'side', 'aria-label': 'Điều hướng' });
   const list = h('section', { class: 'list', 'aria-label': 'Danh sách item' });
   const detail = h('section', { class: 'detail', 'aria-label': 'Chi tiết item' });
   const cols = h('main', { class: 'cols' }, side, list, detail);
-  const shell = h('div', { class: 'app' }, header, cols);
-  return { shell, cols, search, side, list, detail };
+  const shell = h('div', { class: 'app' }, header, cols, bar);
+  return { shell, cols, search, side, list, detail, dot, bar };
 }
 
 function setPane() {
@@ -59,7 +64,7 @@ function renderScreen() {
     main = buildMain();
     root.replaceChildren(main.shell);
     setPane();
-    drawRegions(['nav', 'list', 'detail']);
+    drawRegions(['nav', 'list', 'detail', 'sync']);
     focusKey('nav-all');
     return;
   }
@@ -74,6 +79,10 @@ function drawRegions(regions) {
   if (!main) return;
   if (regions.includes('pane')) setPane();
   if (regions.includes('search')) main.search.value = app.state.query;
+  if (regions.includes('sync')) {
+    replaceRegion(main.dot, renderStatusDot(app));
+    replaceRegion(main.bar, renderStatusBar(app));
+  }
   if (regions.includes('nav')) replaceRegion(main.side, renderNav(app));
   if (regions.includes('list')) replaceRegion(main.list, renderList(app));
   if (regions.includes('detail')) {
@@ -128,6 +137,9 @@ document.addEventListener('keydown', (e) => {
 narrowQuery().addEventListener('change', () => {
   if (app.state.mode === 'view') drawRegions(['detail']);
 });
+
+// "Đã đồng bộ · 2 phút trước" moves on by itself.
+setInterval(() => drawRegions(['sync']), 30_000);
 
 bindNavHistory(app);
 app.bindActivity();

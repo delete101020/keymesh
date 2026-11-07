@@ -68,7 +68,25 @@ function download(field) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function fieldRow(app, item, f) {
+// KM-006 FR36: a mark that does not rely on colour. Read out as "xung đột" with the row.
+const conflictMark = () => h('span', { class: 'conflict-mark' }, h('span', { 'aria-hidden': 'true' }, '⚠'), h('span', { class: 'visually-hidden' }, 'Xung đột'));
+
+// What of the item is marked: field ids, and attributes split into those with a place on screen and not.
+const ATTR_ON_SCREEN = new Set(['title', 'type', 'notes', 'scopes', 'expires']);
+const ATTR_WORDS = { deletedAt: 'trạng thái xoá', purgedAt: 'xoá vĩnh viễn', favorite: 'yêu thích', tags: 'nhãn', fieldOrder: 'thứ tự field', forkedFrom: 'nguồn tách', notes: 'ghi chú', title: 'tiêu đề', type: 'loại', scopes: 'env', expires: 'hạn' };
+function conflictParts(item) {
+  const c = item.conflict ?? { fields: [], attrs: [] };
+  const fields = new Set(c.fields ?? []);
+  const attrs = new Set(c.attrs ?? []);
+  const live = new Set(orderedFields(item).map((f) => f.id));
+  const offScreen = [
+    ...[...fields].filter((id) => !live.has(id)).map((id) => `field đã xoá “${item.fields.find((f) => f.id === id)?.label ?? ''}”`),
+    ...[...attrs].filter((a) => !ATTR_ON_SCREEN.has(a) || (a === 'notes' && !item.notes) || (a === 'expires' && !item.expires)).map((a) => ATTR_WORDS[a] ?? a),
+  ];
+  return { fields, attrs, offScreen };
+}
+
+function fieldRow(app, item, f, marked = false) {
   const shown = app.state.revealed.has(f.id);
   const hasValue = f.v !== '';
   const fileMode = Boolean(f.file) && hasValue;
@@ -79,8 +97,8 @@ function fieldRow(app, item, f) {
   else if (fileMode && !shown) value = h('span', { class: 'muted' }, `${f.file} · ${formatSize(fieldFileBytes(f.v).length)}`);
   else if (maskable && !shown) value = h('span', { 'aria-label': `${f.label} đang được che` }, MASK);
   else value = f.v;
-  return h('div', { class: 'field' },
-    h('div', { class: 'lbl' }, f.label),
+  return h('div', { class: `field${marked ? ' conflicted' : ''}` },
+    h('div', { class: 'lbl' }, marked ? conflictMark() : null, f.label),
     h('div', { class: `val${MULTI_KINDS.has(f.kind) && (shown || !maskable) ? ' pre' : ''}` }, value),
     h('div', { class: 'acts' },
       maskable ? h('button', { class: 'icon', 'aria-label': `${shown ? 'Che' : 'Hiện'} ${f.label}`, fk: `reveal-${f.id}`, on: { click: () => app.toggleReveal(f.id) } }, icon(shown ? 'eyeOff' : 'eye')) : null,
@@ -127,6 +145,8 @@ export function renderDetail(app) {
   const shared = sharedChip(v, item, app.state.filter);
   const origin = item.forkedFrom ? v.items.find((i) => i.id === item.forkedFrom && i.deletedAt === null && i.purgedAt === null) : null;
   const narrow = narrowQuery().matches;
+  const conflict = item.conflict ? conflictParts(item) : null;
+  const marked = (a) => Boolean(conflict?.attrs.has(a));
   // On a narrow screen these go below the fields, so the first thing under the title is what can be copied.
   const more = [
     h('button', { fk: 'dup-item', on: { click: () => app.startDuplicate() } }, icon('dup'), 'Nhân bản'),
@@ -135,7 +155,9 @@ export function renderDetail(app) {
   ];
   return [
     h('div', { class: 'dh' },
-      h('h2', { tabindex: -1, fk: 'detail-title' }, item.title),
+      h('h2', { tabindex: -1, fk: 'detail-title', class: marked('title') ? 'conflicted' : null }, item.title),
+      // FR35, FR38: the badge leads to the history, where the losing version is.
+      conflict ? h('button', { class: 'badge-conflict', fk: 'conflict-badge', 'aria-label': 'Có xung đột, xem lịch sử', on: { click: () => openHistory(app, item.id) } }, h('span', { 'aria-hidden': 'true' }, '⚠'), 'Xung đột') : null,
       narrow ? h('button', {
         class: `icon${item.favorite ? ' star-on' : ''}`,
         'aria-label': item.favorite ? 'Bỏ yêu thích' : 'Yêu thích',
@@ -145,17 +167,25 @@ export function renderDetail(app) {
       }, icon('star')) : null,
       h('button', { fk: 'edit-item', on: { click: () => app.startEdit() } }, icon('edit'), 'Sửa'),
       narrow ? null : more),
+    conflict ? h('div', { class: 'callout warn conflict-note', role: 'note' },
+      h('span', { 'aria-hidden': 'true' }, '⚠'),
+      h('div', { class: 'grow' },
+        h('p', null, 'Item này được sửa ở hai thiết bị cùng lúc. Phần có dấu ⚠ là phần bị xung đột; bản còn lại nằm trong Lịch sử.'),
+        conflict.offScreen.length ? h('p', null, `Xung đột cả ở: ${conflict.offScreen.join(', ')}.`) : null),
+      h('button', { fk: 'resolve-conflict', on: { click: () => app.resolveConflict(item.id) } }, 'Đã xử lý')) : null,
     h('div', { class: 'meta' },
-      h('span', { class: 'badge' }, TYPE_LABELS[item.type]),
+      h('span', { class: `badge${marked('type') ? ' conflicted' : ''}` }, marked('type') ? conflictMark() : null, TYPE_LABELS[item.type]),
+      marked('scopes') ? h('span', { class: 'chip conflicted' }, conflictMark(), 'Env') : null,
       envs.map((e) => h('span', { class: `chip ${envColorClass(e.color)}` }, h('span', { class: 'env-dot' }), `${projects.find((p) => p.id === e.projectId).name} / ${e.name}`)),
       envs.length === 0 ? h('span', { class: 'chip' }, 'Chưa gán') : null,
       shared ? h('span', { class: 'chip shared' }, icon('link'), shared) : null,
+      marked('expires') && item.expires ? h('span', { class: 'chip conflicted' }, conflictMark(), 'Hạn') : null,
       expiryChip(item),
       origin ? h('button', { class: 'chip', fk: 'fork-origin', on: { click: () => app.selectItem(origin.id) } }, icon('fork'), `Tách từ: ${origin.title}`) : null),
     orderedFields(item).length
-      ? h('div', { class: 'section' }, h('h3', null, 'Field'), h('div', { class: 'fields' }, orderedFields(item).map((f) => fieldRow(app, item, f))))
+      ? h('div', { class: 'section' }, h('h3', null, 'Field'), h('div', { class: 'fields' }, orderedFields(item).map((f) => fieldRow(app, item, f, Boolean(conflict?.fields.has(f.id))))))
       : null,
-    item.notes ? h('div', { class: 'section' }, h('h3', null, 'Ghi chú'), h('div', { class: 'notes' }, item.notes)) : null,
+    item.notes ? h('div', { class: 'section' }, h('h3', null, marked('notes') ? conflictMark() : null, 'Ghi chú'), h('div', { class: `notes${marked('notes') ? ' conflicted' : ''}` }, item.notes)) : null,
     narrow ? h('div', { class: 'actions' }, more) : null,
     h('div', { class: 'foot-meta' }, `Sửa lần cuối: ${new Date(item.updatedAt).toLocaleString('vi-VN')}`),
   ];

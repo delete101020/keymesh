@@ -39,6 +39,7 @@ export function createSync({
   let active = false; // between start() and stop()
   let mode = STATUS.local; // local | logged-out | needs-login | on
   let running = null; // the round in progress
+  let busy = false; // set before the round's first emit, which runs before `running` is assigned
   let again = false;
   let timer = null;
   let debounce = null;
@@ -65,11 +66,11 @@ export function createSync({
     let kind;
     if (mode !== 'on') kind = mode;
     else if (list.some((v) => v.error) || net === 'server') kind = STATUS.error;
-    else if (running) kind = STATUS.syncing;
+    else if (busy) kind = STATUS.syncing;
     else if (net === 'offline') kind = STATUS.offline;
     else if (dirtyAny) kind = STATUS.pending;
     else kind = STATUS.synced;
-    return { kind, pending: dirtyAny ? session.pendingCount() : 0, lastOk, cause: net, running: Boolean(running), vaults: list, large: list.some((v) => v.large) };
+    return { kind, pending: dirtyAny ? session.pendingCount() : 0, lastOk, cause: net, running: busy, vaults: list, large: list.some((v) => v.large), limit: LIMIT_BYTES };
   }
 
   const emit = (changed = false) => onChange({ ...status(), changed });
@@ -255,6 +256,7 @@ export function createSync({
     }
     clearRetry();
     const mine = epoch;
+    busy = true;
     running = (async () => {
       emit();
       let changed = false;
@@ -266,6 +268,7 @@ export function createSync({
       } finally {
         if (mine === epoch) {
           running = null;
+          busy = false;
           await refreshDirty();
         }
       }
@@ -308,6 +311,7 @@ export function createSync({
       epoch++;
       active = false;
       running = null;
+      busy = false;
       again = false;
       clearRetry();
       if (debounce !== null) clearTimer(debounce);

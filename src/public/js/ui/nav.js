@@ -38,6 +38,8 @@ export function renderNav(app) {
     filterButton(app, { k: 'all' }, 'Tất cả', counts.all, { iconName: 'inbox', fk: 'nav-all' }),
     filterButton(app, { k: 'unassigned' }, 'Chưa gán', counts.unassigned, { iconName: 'link' }),
     filterButton(app, { k: 'expiring' }, 'Sắp hết hạn', counts.expiring, { iconName: 'clock' }),
+    // KM-006 FR35: the count on wide screens; the home screen shows it on phones.
+    counts.conflicts ? h('p', { class: 'conflict-count nav-conflicts', role: 'note' }, h('span', { 'aria-hidden': 'true' }, '⚠ '), `${counts.conflicts} item có xung đột`) : null,
     h('div', { class: 'nav-sec' },
       h('span', null, 'Dự án'),
       h('button', { class: 'icon', 'aria-label': 'Thêm project', fk: 'add-project', on: { click: () => openAddProject(app) } }, icon('plus'))),

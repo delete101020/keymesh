@@ -37,7 +37,7 @@ function row(app, item, now) {
   return h('button', {
     class: `row${item.id === app.state.selectedId ? ' on' : ''}`,
     fk: `item-${item.id}`,
-    'aria-label': item.title,
+    'aria-label': item.conflict ? `${item.title}, có xung đột` : item.title,
     'aria-current': item.id === app.state.selectedId ? 'true' : null,
     on: { click: () => app.selectItem(item.id) },
   },
@@ -45,7 +45,8 @@ function row(app, item, now) {
     h('span', { class: 'badge' }, TYPE_LABELS[item.type]),
     h('span', { class: 'ttl grow' }, item.title),
     shared ? h('span', { class: 'flag shared', title: shared }, icon('link'), h('span', { class: 'visually-hidden' }, 'Dùng chung')) : null,
-    expiring ? h('span', { class: 'flag exp', title: 'Sắp hết hạn' }, icon('clock'), h('span', { class: 'visually-hidden' }, 'Sắp hết hạn')) : null),
+    expiring ? h('span', { class: 'flag exp', title: 'Sắp hết hạn' }, icon('clock'), h('span', { class: 'visually-hidden' }, 'Sắp hết hạn')) : null,
+    item.conflict ? h('span', { class: 'flag badge-conflict', title: 'Có xung đột' }, h('span', { 'aria-hidden': 'true' }, '⚠'), h('span', { class: 'visually-hidden' }, 'Có xung đột')) : null),
   h('span', { class: 'sub' }, envs.length ? envs.map((e) => e.name).join(', ') : 'Chưa gán'));
 }
 

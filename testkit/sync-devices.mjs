@@ -3,6 +3,8 @@
 // come from outside the app: CDP for the network, the server's SQLite for its data (NFR14).
 import { startApp } from './e2e/driver.mjs';
 import { startServer } from './wrangler-server.mjs';
+import { decryptVault, deriveFromPassword, encryptVault, unwrapAccountKey, unwrapVaultKey, generateVaultKey, wrapVaultKey, encryptVaultMeta } from '../src/public/js/core/crypto.js';
+import { createVault } from '../src/public/js/core/model.js';
 
 // One server per test file: the login counters key on 127.0.0.1, so files must not share one (plan §4).
 export async function startDevices({ names = ['A', 'B'], vars = {} } = {}) {
@@ -116,3 +118,41 @@ export const waitClean = (page, timeout = 30000) =>
 
 // The vault on the server, as SQLite has it.
 export const serverVaults = (server) => server.sql('SELECT id, version, meta_version, blob, wrapped_vault_key, meta, user_id FROM dt_vault ORDER BY id');
+
+// --- another device in Node, with the real keys (AC35, AC45) -----------------------------------------
+// Logs in through the API as a client would and works on vault plaintext with core/, so cases the screens
+// cannot make (a trashed item, a second vault) still go through real encryption and the real server.
+
+export async function nodeDevice(server, username, password) {
+  const pre = await server.call('GET', `/api/prelogin?username=${encodeURIComponent(username)}`);
+  const { encKey, authKey } = await deriveFromPassword(password, pre.body.kdf);
+  const login = await server.call('POST', '/api/login', { json: { username, authKey: Buffer.from(authKey).toString('base64'), deviceName: 'Node' } });
+  if (login.status !== 200) throw new Error(`login ${login.status}`);
+  const { token } = login.body;
+  const accountKey = await unwrapAccountKey(login.body.wrappedAccountKey, encKey);
+  const keyOf = async (id) => {
+    const list = await server.call('GET', '/api/vaults', { token });
+    const item = list.body.items.find((v) => v.id === id) ?? list.body.items[0];
+    return { item, vaultKey: await unwrapVaultKey(item.wrappedVaultKey, accountKey, item.id) };
+  };
+  return {
+    token,
+    async read(id) {
+      const { item, vaultKey } = await keyOf(id);
+      const got = await server.call('GET', `/api/vaults/${item.id}`, { token });
+      return { id: item.id, version: got.body.version, vault: await decryptVault(got.body.blob, vaultKey, item.id) };
+    },
+    async write(id, vault, baseVersion) {
+      const { vaultKey } = await keyOf(id);
+      return server.call('PUT', `/api/vaults/${id}`, { token, json: { baseVersion, blob: await encryptVault(vault, vaultKey) } });
+    },
+    // A second vault made with the account key, as a later epic's screen would (AC35, AC36).
+    async createVault(id, name) {
+      const vaultKey = await generateVaultKey();
+      return server.call('POST', '/api/vaults', {
+        token,
+        json: { id, wrappedVaultKey: await wrapVaultKey(vaultKey, accountKey, id), meta: await encryptVaultMeta({ name, color: null, order: 1 }, vaultKey, id), blob: await encryptVault(createVault(id), vaultKey) },
+      });
+    },
+  };
+}

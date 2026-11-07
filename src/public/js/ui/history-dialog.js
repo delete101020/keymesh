@@ -4,6 +4,9 @@ import { h, openDialog } from './dom.js';
 import { icon } from './icons.js';
 import { diffVersion } from '../history-diff.js';
 
+// KM-006 FR38: core's note for a side that trashed the item while the other edited it.
+const NOTES = { 'deleted-elsewhere': 'đã bị xoá ở thiết bị khác' };
+
 const REASONS = { edit: 'Sửa', restore: 'Khôi phục', conflict: 'Xung đột' };
 const ATTR_LABELS = { title: 'Tiêu đề', notes: 'Ghi chú', expires: 'Hạn', scopes: 'Gán env' };
 const CHANGE_LABELS = { added: 'field thêm sau bản này', removed: 'field đã xoá sau bản này', changed: null };
@@ -63,6 +66,7 @@ export function openHistory(app, itemId) {
         h('div', { class: 'hist-head' },
           h('b', { class: 'grow' }, new Date(entry.at).toLocaleString('vi-VN')),
           h('span', { class: 'chip' }, REASONS[entry.reason] ?? entry.reason),
+          NOTES[entry.note] ? h('span', { class: 'hint' }, NOTES[entry.note]) : null,
           h('button', { on: { click: () => restore(entry) } }, 'Khôi phục bản này')),
         rows.length ? rows.map((row) => diffRow(app, row)) : h('div', { class: 'hint' }, 'Giống bản hiện tại.'));
     })

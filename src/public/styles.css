@@ -269,3 +269,35 @@ button.link{border:0;background:none;color:var(--accent);padding:0 6px;min-heigh
 .strength[data-level=weak] .strength-label{color:var(--danger)}
 .strength[data-level=fair] .strength-label{color:var(--warn)}
 .strength[data-level=strong] .strength-label{color:var(--ok)}
+
+/* KM-006: sync status and conflict marks. Every state has a symbol or word as well as a colour. */
+.app{grid-template-rows:auto 1fr auto}
+.syncbar-slot{border-top:1px solid var(--line);background:var(--panel)}
+.syncbar{width:100%;border:0;border-radius:0;background:none;justify-content:flex-start;text-align:left;min-height:32px;padding:4px 12px;font-size:12.5px;gap:8px}
+.sync-sym,.syncdot .dot{font-weight:700}
+.tone-green .sync-sym,.syncdot.tone-green,.sync-now-line.tone-green{color:var(--ok)}
+.tone-yellow .sync-sym,.syncdot.tone-yellow,.sync-now-line.tone-yellow{color:var(--warn)}
+.tone-red .sync-sym,.syncdot.tone-red,.sync-now-line.tone-red,.syncbar.tone-red{color:var(--danger)}
+.tone-blue .sync-sym,.syncdot.tone-blue,.sync-now-line.tone-blue{color:var(--accent)}
+.tone-gray .sync-sym,.syncdot.tone-gray{color:var(--muted)}
+.sync-large{color:var(--warn)}
+.syncdot-slot{display:none}
+button.syncdot{width:var(--tap);height:var(--tap)}
+.sync-vault{border-top:1px solid var(--line);padding:8px 0;display:grid;gap:2px}
+#toast{bottom:56px}
+.badge-conflict{color:var(--warn);font-weight:650}
+button.badge-conflict{background:var(--warn-bg);border-color:var(--warn);min-height:30px}
+.conflict-mark{color:var(--warn);margin-right:4px}
+.field.conflicted{background:var(--warn-bg);box-shadow:inset 3px 0 0 var(--warn)}
+h2.conflicted,.notes.conflicted{box-shadow:inset 3px 0 0 var(--warn);padding-left:8px}
+.chip.conflicted,.badge.conflicted{background:var(--warn-bg);color:var(--warn)}
+.conflict-note{margin:8px 0;align-items:center}
+.conflict-count{color:var(--warn);font-size:12.5px;margin:6px 8px}
+.home .conflict-count{display:none}
+@media (max-width:899px){
+  .syncbar-slot{display:none}
+  .syncdot-slot{display:inline-flex}
+  .home .conflict-count{display:block}
+  .nav-conflicts{display:none}
+  #toast{bottom:calc(24px + env(safe-area-inset-bottom))}
+}
