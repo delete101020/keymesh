@@ -225,11 +225,11 @@ for (const width of [899, 360]) {
 
 test('KM-003 AC44 FR47 no screen offers an out-of-scope feature', async () => {
   await page.viewport(1280);
-  const banned = /thùng rác|đăng nhập|đăng xuất|đồng bộ|backup|sao lưu|import|export|passkey|vân tay|đổi mật khẩu|chọn vault|^tag$|^xoá item$/i; // KM-004 brought favourites and settings into scope.
+  const banned = /thùng rác|backup|sao lưu|import|export|passkey|vân tay|đổi mật khẩu|chọn vault|^tag$|^xoá item$/i; // KM-004 brought favourites and settings into scope, KM-006 login, logout and sync.
   const names = async (where) => {
     const list = await page.eval(`window.__names()`);
     for (const n of list) assert.doesNotMatch(n, banned, `${where}: ${n}`);
-    assert.doesNotMatch(await page.text(), /thùng rác|đồng bộ|đăng nhập/i, where);
+    assert.doesNotMatch(await page.text(), /thùng rác/i, where);
   };
   await names('main');
   await page.click('Tất cả', { exact: false });

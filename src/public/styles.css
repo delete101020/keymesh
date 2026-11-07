@@ -260,3 +260,12 @@ body[data-shield] #shield{display:block;position:fixed;inset:0;background:var(--
   .dlg-f{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
   .seg{justify-self:stretch}
 }
+
+/* KM-006: account screens */
+.gate-alt{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;flex-wrap:wrap}
+button.link{border:0;background:none;color:var(--accent);padding:0 6px;min-height:var(--tap);text-decoration:underline;cursor:pointer}
+.strength{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.strength meter{flex:1;height:8px}
+.strength[data-level=weak] .strength-label{color:var(--danger)}
+.strength[data-level=fair] .strength-label{color:var(--warn)}
+.strength[data-level=strong] .strength-label{color:var(--ok)}

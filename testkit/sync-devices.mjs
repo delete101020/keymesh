@@ -51,3 +51,68 @@ export async function until(fn, { timeout = 10000, every = 100, what = 'conditio
     await new Promise((r) => setTimeout(r, every));
   }
 }
+
+// --- flows through the real screens -----------------------------------------------------------------
+
+export { PASSWORD, READ_DB, READ_STORES, setup, unlock, createItem } from './e2e/driver.mjs';
+export { REGISTRATION_TOKEN } from './wrangler-server.mjs';
+
+let names = 0;
+export const newUsername = (prefix = 'km006') => `${prefix}-${process.pid}-${++names}`;
+
+const dialogClosed = (page) => page.waitFor(`!document.querySelector('dialog[open]')`, { what: 'dialog closed', timeout: 30000 });
+
+export async function openSettingsDialog(page) {
+  await page.click('Cài đặt');
+  await page.waitFor(`document.querySelector('dialog[open]')`, { what: 'settings open' });
+}
+
+// Settings → "Đăng ký để đồng bộ". Returns the error text, or '' when the dialog closed on success.
+export async function register(page, { username, token, password }) {
+  await openSettingsDialog(page);
+  await page.click('Đăng ký để đồng bộ');
+  await page.fill('Username', username);
+  await page.fill('Token đăng ký', token);
+  await page.fill('Master password hiện tại', password);
+  await page.click('Đăng ký');
+  await page.waitFor(`!document.querySelector('dialog[open]') || document.querySelector('dialog[open] .err')?.textContent`, { what: 'register answered', timeout: 30000 });
+  return page.eval(`document.querySelector('dialog[open] .err')?.textContent ?? ''`);
+}
+
+// From the empty-device screen or the lock screen. Returns 'main', 'choose', or the error text.
+export async function login(page, { username, password }) {
+  if (await page.has('Đăng nhập tài khoản khác')) await page.click('Đăng nhập tài khoản khác');
+  else await page.click('Đăng nhập');
+  await page.fill('Username', username);
+  await page.fill('Master password', password);
+  await page.click('Đăng nhập', { selector: 'button[type=submit]' });
+  await page.waitFor(`document.querySelector('[data-fk=lock]') || document.querySelector('dialog[open]') || document.querySelector('.err')?.textContent`, { what: 'login answered', timeout: 30000 });
+  if (await page.eval(`!!document.querySelector('dialog[open]')`)) return 'choose';
+  if (await page.eval(`!!document.querySelector('[data-fk=lock]')`)) return 'main';
+  return page.eval(`document.querySelector('.err').textContent`);
+}
+
+// The rows on disk, from inside the page.
+export const rows = async (page) => (await page.eval(READ_DB_ALL)).rows;
+export const READ_DB_ALL = `new Promise((resolve, reject) => {
+  const open = indexedDB.open('keymesh');
+  open.onerror = () => reject(open.error);
+  open.onsuccess = () => {
+    const db = open.result;
+    if (!db.objectStoreNames.length) { db.close(); return resolve({ account: null, session: null, passkey: null, settings: null, rows: [] }); }
+    const tx = db.transaction(['meta', 'vaults']);
+    const m = tx.objectStore('meta');
+    const got = {};
+    for (const k of ['account', 'session', 'passkey', 'settings']) { const r = m.get(k); r.onsuccess = () => { got[k] = r.result ?? null; }; }
+    const v = tx.objectStore('vaults').getAll();
+    tx.oncomplete = () => { db.close(); resolve({ ...got, rows: v.result }); };
+    tx.onerror = () => reject(tx.error);
+  };
+})`;
+
+// Every row clean: what this device has is on the server.
+export const waitClean = (page, timeout = 30000) =>
+  page.waitFor(`${READ_DB_ALL}.then((d) => d.rows.length > 0 && d.rows.every((r) => !r.current.dirty))`, { what: 'all changes synced', timeout });
+
+// The vault on the server, as SQLite has it.
+export const serverVaults = (server) => server.sql('SELECT id, version, meta_version, blob, wrapped_vault_key, meta, user_id FROM dt_vault ORDER BY id');
