@@ -3,7 +3,7 @@
 // test path (KM-005 NFR11). Bindings go by flag: `pages dev` ignores the ones in wrangler.toml.
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -78,11 +78,19 @@ export async function startServer(vars = {}) {
 
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
+  // The app this server serves is a caller too (KM-006): its own origin is allowed unless a test says otherwise.
+  if (!('ALLOWED_ORIGINS' in vars)) bindings.ALLOWED_ORIGINS = `${ORIGIN},${url}`;
+  // Wrangler always reads .dev.vars next to the project, and `npm run dev:server` needs src/.dev.vars. Its
+  // values would fill in every binding a test leaves unset on purpose, so the server runs from a directory
+  // of links to src/ that has no such file.
+  const project = join(root, 'project');
+  await mkdir(project);
+  for (const name of ['public', 'functions', 'wrangler.toml']) await symlink(join(SRC, name), join(project, name));
   const flags = Object.entries(bindings).flatMap(([k, v]) => (v === undefined ? [] : ['--binding', `${k}=${v}`]));
   const child = spawn(
     WRANGLER,
     ['pages', 'dev', 'public', '--ip', '127.0.0.1', '--port', String(port), '--persist-to', dataDir, '--d1', `DB=${DB_ID}`, '--inspector-port', String(await freePort()), ...flags],
-    { cwd: SRC, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true },
+    { cwd: project, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true },
   );
   let output = '';
   child.stdout.on('data', (chunk) => (output += chunk));

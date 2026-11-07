@@ -39,6 +39,9 @@ export class Page {
     this.requests = [];
     this.cspLog = [];
     this.downloads = [];
+    this.responses = []; // { method, url, status } of every response, API ones included (KM-006)
+    this.methods = new Map();
+    this.interceptors = [];
   }
 
   send(method, params) {
@@ -57,10 +60,70 @@ export class Page {
     const p = msg.params;
     if (msg.method === 'Runtime.consoleAPICalled') this.console.push(p.args.map((a) => a.value ?? a.description ?? '').join(' '));
     if (msg.method === 'Runtime.exceptionThrown') this.errors.push(p.exceptionDetails.exception?.description ?? p.exceptionDetails.text);
-    if (msg.method === 'Network.requestWillBeSent') this.requests.push(p.request.url);
+    if (msg.method === 'Network.requestWillBeSent') {
+      this.requests.push(p.request.url);
+      this.methods.set(p.requestId, p.request.method);
+    }
+    if (msg.method === 'Network.responseReceived') this.responses.push({ method: this.methods.get(p.requestId), url: p.response.url, status: p.response.status });
+    if (msg.method === 'Network.loadingFailed') this.responses.push({ method: this.methods.get(p.requestId), url: null, status: 0, error: p.errorText });
+    if (msg.method === 'Fetch.requestPaused') this.paused(p);
     if (msg.method === 'Log.entryAdded') {
       this.console.push(p.entry.text);
       if (/content security policy/i.test(p.entry.text)) this.cspLog.push(p.entry.text);
+    }
+  }
+
+  // Requests to /api/ seen by the network layer, as "METHOD /path". Includes ones a test failed on purpose.
+  apiCalls() {
+    return this.requests.filter((u) => new URL(u).pathname.startsWith('/api/')).map((u) => new URL(u).pathname + new URL(u).search);
+  }
+
+  // The device losing the network: navigator.onLine turns false, fetch throws, offline/online fire.
+  async setOffline(offline) {
+    await this.send('Network.emulateNetworkConditions', { offline, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  }
+
+  // Every request matching `pattern` (a CDP urlPattern) at `stage` goes to `handler(request)` first. It
+  // returns 'continue', 'fail' (the connection drops), { status, body, headers } to answer instead, or a
+  // promise of one of those to hold the request. At stage 'Response' the server has already handled it.
+  // Returns a function that removes the interceptor.
+  async intercept(pattern, handler, { stage = 'Request' } = {}) {
+    const entry = { pattern, stage, handler };
+    this.interceptors.push(entry);
+    await this.syncFetch();
+    return async () => {
+      this.interceptors = this.interceptors.filter((x) => x !== entry);
+      await this.syncFetch();
+    };
+  }
+
+  async syncFetch() {
+    if (!this.interceptors.length) return this.send('Fetch.disable');
+    return this.send('Fetch.enable', { patterns: this.interceptors.map((x) => ({ urlPattern: x.pattern, requestStage: x.stage })) });
+  }
+
+  async paused(p) {
+    const stage = p.responseStatusCode === undefined && p.responseErrorReason === undefined ? 'Request' : 'Response';
+    const glob = (pattern) => new RegExp('^' + pattern.split('*').map((part) => part.replace(/[.+?^$()|[\]\\{}]/g, '\\$&')).join('.*') + '$');
+    const entry = this.interceptors.find((x) => x.stage === stage && glob(x.pattern).test(p.request.url));
+    const request = { url: p.request.url, method: p.request.method, body: p.request.postData ?? null, status: p.responseStatusCode ?? null };
+    let action = 'continue';
+    try {
+      if (entry) action = await entry.handler(request);
+    } catch {
+      action = 'fail';
+    }
+    const id = p.requestId;
+    try {
+      if (action === 'fail') await this.send('Fetch.failRequest', { requestId: id, errorReason: 'ConnectionReset' });
+      else if (action && typeof action === 'object') {
+        const headers = Object.entries({ 'Content-Type': 'application/json', ...(action.headers ?? {}) }).map(([name, value]) => ({ name, value: String(value) }));
+        const body = Buffer.from(typeof action.body === 'string' ? action.body : JSON.stringify(action.body ?? {})).toString('base64');
+        await this.send('Fetch.fulfillRequest', { requestId: id, responseCode: action.status, responseHeaders: headers, body });
+      } else if (stage === 'Response') await this.send('Fetch.continueResponse', { requestId: id });
+      else await this.send('Fetch.continueRequest', { requestId: id });
+    } catch {
+      // The page went away while the request was held.
     }
   }
 
@@ -221,10 +284,11 @@ export class Page {
 
 const KEY_CODES = { Tab: 9, Enter: 13, Escape: 27, ' ': 32, ArrowUp: 38, ArrowDown: 40, k: 75 };
 
-export async function startApp({ args = [], root } = {}) {
-  const server = await startServer({ root });
+// `url`: use a server that is already running (KM-006: wrangler with the API) instead of the static one.
+export async function startApp({ args = [], root, url } = {}) {
+  const server = url ? null : await startServer({ root });
   const profile = await newProfile();
-  const app = { server, profile, url: server.url, pages: new Map(), cspSeen: [], args };
+  const app = { server, profile, url: url ?? server.url, pages: new Map(), cspSeen: [], args };
 
   async function connect() {
     const chrome = await launchChrome({ profile, args: app.args });
@@ -274,7 +338,7 @@ export async function startApp({ args = [], root } = {}) {
   };
   app.stop = async () => {
     await app.chrome.stop().catch(() => {});
-    await app.server.close();
+    await app.server?.close();
     await removeProfile(profile);
   };
   return app;
@@ -323,6 +387,28 @@ export const READ_DB = `new Promise((resolve, reject) => {
     tx.onerror = () => reject(tx.error);
   };
 })`;
+
+// Everything the app's origin keeps in the browser, as one string to search: every IndexedDB store with
+// its keys, Cache Storage bodies, localStorage and sessionStorage (KM-006 NFR02, NFR04).
+export const READ_STORES = `(async () => {
+  const out = [];
+  for (const { name } of await indexedDB.databases()) {
+    const db = await new Promise((res, rej) => { const r = indexedDB.open(name); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    for (const store of db.objectStoreNames) {
+      const tx = db.transaction(store);
+      const os = tx.objectStore(store);
+      const [keys, values] = await Promise.all([os.getAllKeys(), os.getAll()].map((req) => new Promise((res) => { req.onsuccess = () => res(req.result); })));
+      out.push(JSON.stringify({ name, store, keys, values }));
+    }
+    db.close();
+  }
+  for (const key of await caches.keys()) {
+    const cache = await caches.open(key);
+    for (const req of await cache.keys()) out.push(req.url, await (await cache.match(req)).text());
+  }
+  for (const s of [localStorage, sessionStorage]) for (let i = 0; i < s.length; i++) out.push(s.key(i), s.getItem(s.key(i)));
+  return out.join('\\n');
+})()`;
 
 // Grep every file under a directory for strings, in raw and in UTF-16 form. Returns the hits.
 export async function grepDir(dir, needles) {
