@@ -103,8 +103,9 @@ test('KM-006 AC46 FR37 "Đã xử lý" on one device: the mark goes on both, con
   await waitClean(B);
   assert.equal((await marks(B)).badge, true, 'editing does not clear the mark');
   await nudge(A);
-  await waitClean(A);
   await open(A, 'Partner X');
+  // B's edit adds a history entry of its own: count only once A has it.
+  await A.waitText('edited without resolving', { timeout: 15000 });
   const historyBefore = await A.eval(`(async () => { document.querySelector('[data-fk=hist-item]').click(); await new Promise((r) => setTimeout(r, 100)); const n = document.querySelectorAll('dialog[open] .hist-entry').length; document.querySelector('dialog[open] .dlg-f button').click(); return n; })()`);
   await A.click('Đã xử lý');
   await A.waitFor(`!document.querySelector('[data-fk=conflict-badge]')`);

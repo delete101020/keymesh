@@ -27,15 +27,20 @@ export async function startDevices({ names = ['A', 'B'], vars = {} } = {}) {
       this.devices.push(devices[name]);
       return devices[name];
     },
-    // CSP violations on every page of every device, then the server's own log scan for secrets.
+    // CSP violations and requests off this machine on every page of every device, then the server's own log
+    // scan for secrets.
     async stop() {
       const csp = [];
+      const outside = new Set();
       for (const d of Object.values(devices)) {
         csp.push(...(await d.app.allCsp().catch(() => [])));
+        // AC50: nothing leaves the machine; no request to Cloudflare or anywhere else.
+        for (const p of d.app.pages.values()) for (const u of p.requests) if (!/^(http:\/\/127\.0\.0\.1:\d+\/|data:|blob:|about:)/.test(u)) outside.add(u.slice(0, 60));
         await d.app.stop();
       }
       await server.stop();
       if (csp.length) throw new Error(`CSP violations: ${csp.join('; ')}`);
+      if (outside.size) throw new Error(`requests outside 127.0.0.1: ${[...outside].join(', ')}`);
     },
   };
 }
