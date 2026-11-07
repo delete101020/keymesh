@@ -13,7 +13,7 @@
 | | |
 |---|---|
 | Branch | `feat/KM-006-sync` |
-| PR | PR_LINK |
+| PR | Chưa mở: máy này không có `gh`. Branch đã push; mở tại https://github.com/delete101020/keymesh/pull/new/feat/KM-006-sync (nội dung đề xuất trong phiên implement) |
 
 ## 2. Progress
 
