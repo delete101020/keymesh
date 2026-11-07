@@ -63,7 +63,7 @@ test('KM-003 AC02 AC03 FR03 FR04 11 characters can still create; stored data has
   await page.waitFor(page.find('Khoá'));
   const { account, rows } = await page.eval(READ_DB);
   assert.equal(rows.length, 1);
-  assert.deepEqual(Object.keys(account).sort(), ['deviceId', 'kdf', 'userId', 'username', 'wrappedAccountKey']);
+  assert.deepEqual(Object.keys(account).sort(), ['activeVaultId', 'deviceId', 'kdf', 'userId', 'username', 'wrappedAccountKey']);
   assert.match(account.deviceId, /^d_[0-9a-f]{16}$/);
   assert.equal(account.userId, null);
   assert.equal(account.username, null);

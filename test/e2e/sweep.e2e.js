@@ -334,7 +334,7 @@ test('KM-003 AC46 NFR02 NFR03 markers in every input: after locking, nothing rea
   assert.equal(stored.names.length, 1);
   assert.match(stored.names[0], /^keymesh-shell-[0-9a-f]{16}$/);
   assert.ok(stored.cached.length > 0);
-  assert.deepEqual(Object.keys(stored.db.account).sort(), ['deviceId', 'kdf', 'userId', 'username', 'wrappedAccountKey']);
+  assert.deepEqual(Object.keys(stored.db.account).sort(), ['activeVaultId', 'deviceId', 'kdf', 'userId', 'username', 'wrappedAccountKey']);
   for (const line of [...page.console, ...page.errors, ...page.requests]) {
     assert.ok(!line.includes(MARK), `output: ${line.slice(0, 80)}`);
     assert.ok(!line.includes(PASSWORD));

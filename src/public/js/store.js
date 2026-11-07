@@ -4,6 +4,8 @@ const DB_VERSION = 1;
 const META = 'meta';
 const VAULTS = 'vaults';
 const ACCOUNT_KEY = 'account';
+const SESSION_KEY = 'session';
+const PASSKEY_KEY = 'passkey';
 const SETTINGS_KEY = 'settings';
 
 // Thrown instead of a raw DOMException so callers have one thing to catch. No stored value is ever in it.
@@ -41,6 +43,24 @@ export function newVaultRow(record, savedAt) {
     base: null,
     deletedAt: null,
   };
+}
+
+// A row as it comes from the server, already in step with it (FR07, FR27).
+export function syncedVaultRow({ id, wrappedVaultKey, meta, metaVersion, version, blob }, savedAt) {
+  return {
+    id,
+    wrappedVaultKey,
+    meta,
+    metaVersion,
+    current: { envelope: blob, version, dirty: false, savedAt },
+    base: { envelope: blob, version },
+    deletedAt: null,
+  };
+}
+
+function pushed(row, sent, version, metaVersion) {
+  const newer = row.current.envelope.iv !== sent.iv;
+  return { ...row, metaVersion, current: { ...row.current, version, dirty: newer }, base: { envelope: sent, version } };
 }
 
 export async function openStore(idb = globalThis.indexedDB) {
@@ -89,11 +109,98 @@ export async function openStore(idb = globalThis.indexedDB) {
 
     readVaultRows: () => inTx(VAULTS, 'readonly', (tx) => result(tx.objectStore(VAULTS).getAll())),
 
-    // All or nothing, and `add` makes a second tab racing on setup fail instead of overwriting.
-    createAccount: (account, rows) =>
+    readVaultRow: (id) => inTx(VAULTS, 'readonly', (tx) => result(tx.objectStore(VAULTS).get(id))).then((r) => r ?? null),
+
+    // All or nothing, and `add` makes a second tab racing on setup fail instead of overwriting. `session` is
+    // there when the account comes from a login (KM-006 FR07).
+    createAccount: (account, rows, session = null) =>
       inTx([META, VAULTS], 'readwrite', (tx) => {
         tx.objectStore(META).add(account, ACCOUNT_KEY);
+        if (session) tx.objectStore(META).put(session, SESSION_KEY);
         for (const row of rows) tx.objectStore(VAULTS).add(row);
+      }),
+
+    // { token, expiresAt }, or { token: null, needsLogin: true } after a 401. No row: logged out (KM-006).
+    readSession: () => inTx(META, 'readonly', (tx) => result(tx.objectStore(META).get(SESSION_KEY))).then((s) => s ?? null),
+
+    writeSession: (session) =>
+      inTx(META, 'readwrite', (tx) => {
+        tx.objectStore(META).put(session, SESSION_KEY);
+      }),
+
+    clearSession: () =>
+      inTx(META, 'readwrite', (tx) => {
+        tx.objectStore(META).delete(SESSION_KEY);
+      }),
+
+    // Only whether one exists: the record itself never leaves this store (KM-006 FR14).
+    hasPasskey: () => inTx(META, 'readonly', (tx) => result(tx.objectStore(META).count(PASSKEY_KEY))).then((n) => n > 0),
+
+    updateAccount: (patch, session) =>
+      inTx(META, 'readwrite', async (tx) => {
+        const store = tx.objectStore(META);
+        const account = await result(store.get(ACCOUNT_KEY));
+        if (!account) throw new StoreError('missing');
+        store.put({ ...account, ...patch }, ACCOUNT_KEY);
+        if (session) store.put(session, SESSION_KEY);
+      }),
+
+    // A vault the server has and this device does not yet (FR27). `add`: never overwrites one it has.
+    addVaultRow: (row) =>
+      inTx(VAULTS, 'readwrite', (tx) => {
+        tx.objectStore(VAULTS).add(row);
+      }),
+
+    // Registration went through (FR04): account, session and the row move to version 1 in one go. The row
+    // stays dirty if it was saved again while the request was out, which a different IV shows (FR18).
+    commitRegistration: ({ userId, username, session, vaultId, sent, version, metaVersion }) =>
+      inTx([META, VAULTS], 'readwrite', async (tx) => {
+        const meta = tx.objectStore(META);
+        const account = await result(meta.get(ACCOUNT_KEY));
+        if (!account) throw new StoreError('missing');
+        meta.put({ ...account, userId, username }, ACCOUNT_KEY);
+        meta.put(session, SESSION_KEY);
+        const vaults = tx.objectStore(VAULTS);
+        const row = await result(vaults.get(vaultId));
+        if (!row) throw new StoreError('missing');
+        vaults.put(pushed(row, sent, version, metaVersion));
+      }),
+
+    // A PUT was accepted at `version` (FR18, plan §1).
+    commitPush: (id, sent, version) =>
+      inTx(VAULTS, 'readwrite', async (tx) => {
+        const store = tx.objectStore(VAULTS);
+        const row = await result(store.get(id));
+        if (!row) throw new StoreError('missing');
+        store.put(pushed(row, sent, version, row.metaVersion));
+      }),
+
+    // The result of a pull or merge (FR20, FR21): current and base together, so a crash leaves either the
+    // old pair or the new one.
+    commitPull: (id, { envelope, dirty, base, savedAt }) =>
+      inTx(VAULTS, 'readwrite', async (tx) => {
+        const store = tx.objectStore(VAULTS);
+        const row = await result(store.get(id));
+        if (!row) throw new StoreError('missing');
+        store.put({ ...row, current: { envelope, version: base.version, dirty, savedAt }, base });
+      }),
+
+    // Login with another account (FR09): the old one goes and the new one arrives in one transaction.
+    replaceAccount: (account, rows, session) =>
+      inTx([META, VAULTS], 'readwrite', (tx) => {
+        tx.objectStore(META).clear();
+        tx.objectStore(VAULTS).clear();
+        tx.objectStore(META).add(account, ACCOUNT_KEY);
+        tx.objectStore(META).put(session, SESSION_KEY);
+        for (const row of rows) tx.objectStore(VAULTS).add(row);
+      }),
+
+    // Everything of the account on this device, in one transaction (FR13). clear() is not blocked by other
+    // tabs' connections the way deleteDatabase() is; they just read empty stores afterwards.
+    wipe: () =>
+      inTx([META, VAULTS], 'readwrite', (tx) => {
+        tx.objectStore(META).clear();
+        tx.objectStore(VAULTS).clear();
       }),
 
     // Resolves only after the transaction has committed.
