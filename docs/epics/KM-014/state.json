@@ -1,0 +1,68 @@
+{
+  "id": "KM-014",
+  "title": "Deploy và kiểm trên Cloudflare thật, điện thoại thật",
+  "description": "Chỉ ghi lại việc, chưa code, chưa xếp mốc: deploy lên *.pages.dev và mọi việc KM-006 chuyển đi (header thật, AC25 còn lại, binding, gói Free, giới hạn dòng D1, câu lỗi trùng khoá, ETag dạng yếu, điện thoại thật, tốc độ gộp trên máy thật, dung lượng snapshot KM-009). Phải xong trước khi đưa secret thật lên server.",
+  "pipeline": "KM-014",
+  "agent": null,
+  "agents": [
+    "aidlc-native-originator",
+    "aidlc-native-engineer",
+    "aidlc-native-engineer",
+    "aidlc-native-verifier"
+  ],
+  "currentStep": 0,
+  "status": "in_progress",
+  "strict_mode": true,
+  "tags": [
+    "DEPLOY",
+    "CLOUDFLARE"
+  ],
+  "createdAt": "2026-11-07T00:00:00.000Z",
+  "stepStates": [
+    {
+      "agent": "aidlc-native-originator",
+      "name": "intent",
+      "status": "in_progress",
+      "revision": 1,
+      "runStatus": "awaiting_work",
+      "startedAt": "2026-11-07T00:00:00.000Z",
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "build-plan",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-engineer",
+      "name": "implement",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    },
+    {
+      "agent": "aidlc-native-verifier",
+      "name": "verify",
+      "status": "pending",
+      "revision": 1,
+      "runStatus": "pending",
+      "startedAt": null,
+      "finishedAt": null,
+      "history": [],
+      "artifactsProduced": []
+    }
+  ],
+  "updatedAt": "2026-11-07T00:00:00.000Z"
+}

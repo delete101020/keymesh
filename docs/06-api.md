@@ -94,7 +94,7 @@ Lỗi: `401 invalid_credentials` (không phân biệt sai username hay sai mật
 }
 304   // khi If-None-Match khớp ETag hiện tại (ETag tính từ danh sách (id, version, metaVersion))
 ```
-Client gọi endpoint này mỗi 60 giây để biết vault nào có thay đổi, thay vì gọi riêng từng vault.
+Client gọi endpoint này mỗi 50 giây khi đang mở ở foreground để biết vault nào có thay đổi, thay vì gọi riêng từng vault (KM-006 spec Concern 4). Client tự giữ `ETag` và gửi lại trong `If-None-Match`.
 
 ### `POST /api/vaults`
 
@@ -225,4 +225,4 @@ Dùng khi nghi lộ `accountKey`. Thực hiện trong một transaction: thay `w
 | 429 | `too_many_attempts` | Bị rate limit |
 | 500 | `internal` | |
 
-Khi nhận 401, client chuyển sang màn đăng nhập nhưng **vẫn giữ dữ liệu cục bộ đã mã hoá**, kể cả các thay đổi đang dirty, và push lại sau khi đăng nhập.
+Khi nhận 401, client **không chuyển màn** (KM-006 spec Concern 11): dừng mọi lời gọi cần phiên, ghi `meta.session = { token: null, needsLogin: true }` nên mở lại app cũng không gửi gì, hiện chấm đỏ "Cần đăng nhập lại"; đọc và sửa vẫn chạy, dữ liệu và thay đổi dirty giữ nguyên. Người dùng đăng nhập lại chỉ bằng mật khẩu (username điền sẵn) thì client đẩy nốt thay đổi.

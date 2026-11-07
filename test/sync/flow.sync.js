@@ -1,6 +1,7 @@
 // KM-006 AC21–AC30: changes travelling between two real browsers through a real local server.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { addProject } from '../../testkit/e2e/driver.mjs';
 import {
   READ_DB_ALL,
   createItem,
@@ -129,15 +130,23 @@ test('KM-006 AC24 NFR06 criterion 3: the same field on both converges in ≤ 2 p
   }
 });
 
-test('KM-006 AC26 FR19 envs added on both offline: the item is in every one of them, no badge', async () => {
+test('KM-006 AC26 FR19 criterion 3: PaymentGW/prod added on one, CRM/uat on the other, offline: the item is in all four envs, no badge', async () => {
   const { A, B } = await pairOn(env, { title: 'Partner X', project: { name: 'PaymentGW', envs: 'uat, staging, prod' } });
+  await addProject(A, 'CRM', 'uat');
+  await openItem(A, 'Partner X');
+  await A.click('Sửa');
+  for (const e of ['PaymentGW / uat', 'PaymentGW / staging']) await A.click(e);
+  await A.click('Lưu');
+  await A.waitFor(`!document.querySelector('[data-fk=edit-title]')`);
+  await waitClean(A);
+  await nudge(B);
+  await B.waitText('CRM', { timeout: 15000 });
   await A.setOffline(true);
   await B.setOffline(true);
-  // Item starts unassigned; A adds two envs, B adds the two others.
-  for (const [page, envs] of [[A, ['PaymentGW / uat', 'PaymentGW / prod']], [B, ['PaymentGW / staging']]]) {
+  for (const [page, env_] of [[A, 'PaymentGW / prod'], [B, 'CRM / uat']]) {
     await openItem(page, 'Partner X');
     await page.click('Sửa');
-    for (const e of envs) await page.click(e);
+    await page.click(env_);
     await page.click('Lưu');
     await page.waitFor(`!document.querySelector('[data-fk=edit-title]')`);
   }
@@ -149,7 +158,7 @@ test('KM-006 AC26 FR19 envs added on both offline: the item is in every one of t
   await waitClean(A);
   for (const page of [A, B]) {
     await openItem(page, 'Partner X');
-    for (const e of ['uat', 'staging', 'prod']) await page.waitText(`PaymentGW / ${e}`, { timeout: 15000 });
+    for (const e of ['PaymentGW / uat', 'PaymentGW / staging', 'PaymentGW / prod', 'CRM / uat']) await page.waitText(e, { timeout: 15000 });
     assert.equal(await page.eval(`!!document.querySelector('[data-fk=conflict-badge]')`), false);
   }
 });

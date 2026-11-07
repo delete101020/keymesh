@@ -7,14 +7,14 @@ Ký hiệu ưu tiên: **P1** bắt buộc cho bản đầu · **P2** nên có ·
 
 | ID | Chức năng | Ưu tiên | Trạng thái |
 |---|---|---|---|
-| F-AUTH-01 | Tạo tài khoản: username + master password (nhập 2 lần, có thanh đo độ mạnh, cảnh báo nếu < 12 ký tự) | P1 | 🆕 |
-| F-AUTH-02 | Đăng nhập trên thiết bị mới | P1 | 🆕 |
+| F-AUTH-01 | Tạo tài khoản cục bộ chỉ với master password (nhập 2 lần, thanh đo độ mạnh, cảnh báo nếu < 12 ký tự), không cần mạng; đăng ký username lên server làm sau trong app, giữ nguyên bộ khoá và dữ liệu (KM-006 spec Concern 9) | P1 | ✅ |
+| F-AUTH-02 | Đăng nhập trên thiết bị mới; máy đang có tài khoản khác thì hỏi, Huỷ là mặc định | P1 | ✅ |
 | F-AUTH-03 | Mở khoá bằng master password, chạy được cả khi offline | P1 | ✅ (v1 dùng file) → 🆕 |
 | F-AUTH-04 | Mở khoá bằng passkey (vân tay/Face ID), bật hoặc tắt theo từng thiết bị | P1 | 🆕 |
 | F-AUTH-05 | Khoá thủ công; tự khoá khi không thao tác; tự khoá khi app chuyển sang nền (mobile) | P1 | ✅ (khoá nền đã kiểm trên giả lập Android và iOS) |
 | F-AUTH-06 | Đổi master password | P1 | ✅ → 🆕 (theo luồng mới) |
 | F-AUTH-07 | Quản lý thiết bị: xem và thu hồi session | P2 | 🆕 |
-| F-AUTH-08 | Đăng xuất (tuỳ chọn xoá dữ liệu cục bộ) | P1 | 🆕 |
+| F-AUTH-08 | Đăng xuất (tuỳ chọn xoá dữ liệu cục bộ; còn thay đổi chưa lên server thì nêu số lượng và phải gõ xác nhận) | P1 | ✅ |
 | F-AUTH-09 | Xoay khoá của một vault; xoay khoá tài khoản | P1 (trước `KM-014`, KM-011) | 🆕 |
 | F-AUTH-10 | Recovery key in ra giấy; đặt lại mật khẩu bằng passkey khi quên | P1 (trước `KM-014`, KM-011) | 🆕 |
 | F-AUTH-11 | Chỉnh thời gian tự khoá trong cài đặt (desktop: không thao tác, mặc định 10 phút; mobile: sau khi chuyển nền, mặc định 60 giây) | P1 | ✅ |
@@ -56,7 +56,7 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 | F-ITM-10 | Sinh mật khẩu ngay cạnh field `secret`: chế độ *Ngẫu nhiên* (độ dài 8–64, chữ hoa, số, ký tự đặc biệt) và *Dễ nhớ* (ghép từ) | P2 | ✅ (v2 thêm tuỳ chọn) |
 | F-ITM-11 | Tag, đánh dấu yêu thích | P3 | Yêu thích ✅ (chỉ màn hẹp); màn rộng và tag ⏳ (KM-011) |
 | F-ITM-12 | **Thùng rác**: xem, khôi phục item đã xoá trong 30 ngày; *Xoá vĩnh viễn* từng item hoặc *Dọn thùng rác*; tự xoá trắng khi quá 30 ngày | P1 | 🆕 |
-| F-ITM-13 | Badge ⚠ cho item có xung đột đồng bộ, **tô sáng đúng field/thuộc tính bị xung đột**, kèm nút "Đã xử lý" | P1 | 🆕 |
+| F-ITM-13 | Badge ⚠ cho item có xung đột đồng bộ, **tô sáng đúng field/thuộc tính bị xung đột**, kèm nút "Đã xử lý" | P1 | ✅ |
 | F-ITM-14 | Hiện chip "Dùng chung: uat, staging (+1 project khác)" trong chi tiết item | P1 | ✅ |
 | F-ITM-15 | **Field OTP (TOTP)**: nhập secret base32 hoặc URI `otpauth://`, hoặc **quét QR** bằng camera / từ ảnh chụp màn hình; màn xem hiện mã hiện tại kèm đếm ngược, copy mã | P2 | 🆕 |
 | F-ITM-16 | **Field từ file**: field nhiều dòng đọc nội dung từ file văn bản (≤ 64 KB, ví dụ `.ovpn`, cert, SSH key) và tải lại thành file đúng tên ở màn xem | P2 | 🆕 |
@@ -75,8 +75,8 @@ Schema, API, lưu trữ và sync hỗ trợ nhiều vault từ đầu (M1–M3).
 
 | ID | Chức năng | Ưu tiên | Trạng thái |
 |---|---|---|---|
-| F-SYNC-01 | Đồng bộ tự động, ưu tiên offline, theo từng vault, **gộp theo field** (xem [05-sync.md](05-sync.md)) | P1 | 🆕 |
-| F-SYNC-02 | Thanh trạng thái đồng bộ và nút "Đồng bộ ngay" | P1 | 🆕 |
+| F-SYNC-01 | Đồng bộ tự động, ưu tiên offline, theo từng vault, **gộp theo field** (xem [05-sync.md](05-sync.md)) | P1 | ✅ |
+| F-SYNC-02 | Thanh trạng thái đồng bộ và nút "Đồng bộ ngay" | P1 | ✅ |
 | F-SYNC-03 | Xem và khôi phục snapshot trên server (theo từng vault) | P2 | 🆕 |
 | F-DATA-01 | Tải backup đã mã hoá (`keymesh-backup`), chọn một hoặc tất cả vault | P1 | ✅ (v1 là chính file) → 🆕 |
 | F-DATA-02 | Import backup v2 vào vault đang chọn hoặc vault mới | P1 | 🆕 |
@@ -150,10 +150,15 @@ Nguyên tắc cho mobile:
 
 | Trạng thái | Hiển thị |
 |---|---|
-| Đã đồng bộ | ● xanh |
-| Có thay đổi chưa push | ● vàng "N thay đổi chờ" |
-| Offline | ● xám "Offline" |
-| Lỗi hoặc cần đăng nhập lại | ● đỏ, chạm vào để xem chi tiết |
+| Đã đồng bộ | ✓ xanh "Đã đồng bộ · thời điểm" |
+| Đang đồng bộ | ↻ xanh dương "Đang đồng bộ…" |
+| Có thay đổi chưa push | • vàng "N thay đổi chờ". N là số item, project, env khác bản đã đồng bộ (KM-006 FR32) |
+| Offline | ○ xám "Offline – N thay đổi chờ", hoặc "Offline" khi N = 0 |
+| Lỗi hoặc cần đăng nhập lại | ⚠ đỏ "Lỗi đồng bộ" / "Cần đăng nhập lại", chạm vào để xem chi tiết |
+| Chưa đăng ký / đã đăng xuất | ○ xám "Chỉ trên máy này" / "Đã đăng xuất" (KM-006) |
+| Vault từ 1 000 000 byte | "⚠ Vault gần giới hạn dung lượng", chi tiết nêu giới hạn 2 000 000 byte; không chặn |
+
+Thứ tự ưu tiên khi nhiều trạng thái cùng đúng: lỗi hoặc cần đăng nhập lại > đang đồng bộ > offline > thay đổi chờ > đã đồng bộ. Desktop: thanh dưới cùng; mobile: chấm ở đầu trang. Mọi trạng thái có ký hiệu và chữ, không chỉ dựa vào màu.
 | Có xung đột | Badge ⚠ trên item và số lượng ở trang chủ |
 
 ## Tiêu chí chấp nhận cho kịch bản chính

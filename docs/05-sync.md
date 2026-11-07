@@ -30,7 +30,7 @@ sequenceDiagram
   alt version của A trên server = 7
     S->>S: ghi blob, version = 8 (từ KM-009: lưu snapshot v7 trước)
     S-->>C: 200 {version: 8}
-    C->>C: base = local, baseVersion = 8, dirty = false
+    C->>C: base = bản đã gửi, baseVersion = 8<br/>dirty = false chỉ khi không có lần lưu nào sau bản đã gửi
   else server đã ở v9 (thiết bị khác đã push)
     S-->>C: 409 {version: 9, blob}
     C->>C: remote = decrypt(blob)<br/>merged = merge(base, local, remote)
@@ -44,31 +44,46 @@ sequenceDiagram
 `GET /api/vaults` trả về mọi vault của user kèm `version` và `metaVersion`, nhưng **không kèm blob**. Client dùng nó để:
 
 - phát hiện vault mới được tạo ở thiết bị khác (tải `wrappedVaultKey`, `meta`, rồi pull blob);
-- phát hiện vault đã bị xoá ở thiết bị khác (nếu không dirty thì xoá bản cục bộ; nếu đang dirty thì giữ lại, báo người dùng và cho chọn tạo lại hoặc bỏ);
+- phát hiện vault không còn trên server. **KM-006 không bao giờ xoá dữ liệu trên máy theo tín hiệu từ server:** chỉ báo lỗi riêng vault đó (KM-006 spec Concern 17). Xoá có xác minh khi vault bị xoá ở thiết bị khác thuộc KM-008;
+- server có `version` thấp hơn bản trên máy (server bị khôi phục về bản cũ): không ghi đè, không đẩy, báo lỗi riêng vault đó (KM-006 plan quyết định 1);
 - biết vault nào có `version` mới hơn `baseVersion` để chỉ pull những vault đó.
 
-Đổi tên hoặc màu vault (`meta`) dùng `PATCH /api/vaults/:id` với `baseMetaVersion`. Nếu bị 409 thì bản có thời điểm sửa muộn hơn thắng, vì meta chỉ là tên và màu.
+Đổi tên hoặc màu vault (`meta`) dùng `PATCH /api/vaults/:id` với `baseMetaVersion`. Nếu bị 409 thì bản có thời điểm sửa muộn hơn thắng, vì meta chỉ là tên và màu. Gộp và nhận `meta` thuộc KM-008; KM-006 không nhận `meta` từ máy khác (`metaVersion` luôn là 1).
+
+Vault mới thấy trong danh sách được tải về và thêm vào máy; vault đang hiện không đổi. Thiết bị mới mở vault có `createdAt` nhỏ nhất, hoà thì theo id (KM-006 FR28).
 
 ### Khi nào đồng bộ
 
 | Sự kiện | Hành động |
 |---|---|
 | Mở khoá xong | `GET /api/vaults`, rồi pull các vault có version mới |
-| Lưu thay đổi | Đặt `dirty` cho vault đó, rồi `push` sau 1,5 giây (debounce) |
+| Lưu thay đổi | Đặt `dirty` cho vault đó, rồi `push` sau 1,5 giây (debounce). Lần đẩy đã hẹn vẫn chạy một lần nếu app vừa chuyển nền |
 | App quay lại foreground (`visibilitychange`) hoặc có mạng lại (`online`) | `GET /api/vaults`, pull vault có thay đổi, rồi `push` các vault đang dirty |
-| Định kỳ khi đang mở | `GET /api/vaults` mỗi 60 giây (một request cho mọi vault; trả 304 nếu không vault nào đổi, theo `ETag`) |
-| Người dùng bấm "Đồng bộ" | Như trên, cho mọi vault |
+| Định kỳ khi đang mở, ở foreground | `GET /api/vaults` mỗi **50 giây** (KM-006 spec Concern 4: debounce 1,5 s cộng nhịp 60 s vượt 60 s của tiêu chí 1). Một request cho mọi vault; trả 304 nếu không vault nào đổi. Client tự giữ `ETag` trong bộ nhớ và tự gửi `If-None-Match`, vì mọi response là `no-store`; bỏ `ETag` sau mỗi lần đẩy |
+| Người dùng bấm "Đồng bộ ngay" | Như trên, cho mọi vault, bỏ qua backoff; đang có lượt chạy thì không tạo lượt thứ hai |
+| App đang khoá, ở nền, chưa đăng ký hoặc đã đăng xuất | Không đồng bộ, không request nào. Hoạt động đồng bộ không tính là thao tác nên không làm chậm tự khoá |
 
 ### Pull một vault
 
 1. Gọi `GET /api/vaults/:id?since=baseVersion`. Nếu nhận 304 thì xong.
 2. Nếu nhận 200 với `{version, blob}`:
    - Nếu không dirty: `local = base = remote`.
-   - Nếu đang dirty: `local = merge(base, local, remote)`, `base = remote`, giữ dirty để push sau.
+   - Nếu đang dirty: `local = merge(base, local, remote)`, `base = remote`, giữ dirty để push sau. Bản gộp giống hệt bản server (ví dụ lần đẩy trước đã tới server nhưng mất phản hồi) thì bỏ dirty, không đẩy.
+3. Bản server không giải mã được hoặc phép gộp báo `invalid`: không ghi đè, không gộp, không đẩy vault đó; báo lỗi riêng vault đó và thử lại khi server có version khác (KM-006 FR23).
+
+Kết quả pull, gộp và ghi nhận lần đẩy đi qua **cùng hàng đợi với các lần lưu** (`session.js`), ghi `current` và `base` trong một transaction.
+
+### Thay đổi chờ khi đang đẩy (KM-006 FR18)
+
+Lưu thêm trong lúc `PUT` đang chạy thì thay đổi mới vẫn chờ: nhận `200` thì `base` là đúng bản đã gửi, còn `dirty = false` chỉ khi `current.envelope` vẫn có đúng IV đã gửi (mỗi lần mã hoá có IV ngẫu nhiên).
+
+### Bản nháp đang sửa (KM-006 FR22)
+
+Đồng bộ không vẽ lại form đang sửa. Khi lưu, chỉ những giá trị người dùng đã đổi so với lúc mở bản nháp được áp lên item mới nhất; giá trị vừa nhận mà người dùng không đụng tới vẫn còn. Người dùng đổi đúng giá trị đó thì giá trị của họ thắng, giá trị trước đó vào lịch sử. Item hoặc field người dùng đã sửa không còn thì giữ bản nháp trên màn và báo.
 
 ### Thử lại
 
-Khi lỗi mạng hoặc 5xx, thử lại với backoff 2s, 5s, 15s, 60s. Thay đổi vẫn nằm an toàn trong IndexedDB. Thanh trạng thái hiển thị: `Đã đồng bộ`, `Đang đồng bộ…`, `Offline – N thay đổi chờ`, hoặc `Lỗi – thử lại` (gộp cho mọi vault, chạm vào để xem từng vault).
+Khi lỗi mạng hoặc 5xx, thử lại với backoff 2s, 5s, 15s, 60s rồi mỗi 60s; về foreground, có mạng lại hoặc bấm "Đồng bộ ngay" thì thử ngay và đặt lại backoff. Ở nền thì không thử lại. `401`: dừng mọi lời gọi cần phiên, ghi `meta.session = { token: null, needsLogin: true }`, giữ dữ liệu và thay đổi chờ. `400`, `403`, `404`: báo đúng nguyên nhân, không thử lại nhanh hơn 60 s; `413`: không thử lại cho tới khi vault đổi. Tối đa 5 lần `409` liên tiếp mỗi lượt. Thay đổi vẫn nằm an toàn trong IndexedDB. Thanh trạng thái theo thứ tự ưu tiên: `Lỗi đồng bộ` hoặc `Cần đăng nhập lại` (đỏ) > `Đang đồng bộ…` > `Offline – N thay đổi chờ` (xám) > `N thay đổi chờ` (vàng) > `Đã đồng bộ · thời điểm` (xanh); tài khoản chưa đăng ký hiện `Chỉ trên máy này`, đã đăng xuất hiện `Đã đăng xuất`. N là số item, project, env có nội dung khác `base`, tính trên mọi vault (KM-006 FR32). Chạm vào để xem từng vault.
 
 ### Bản sao tự động ra file
 

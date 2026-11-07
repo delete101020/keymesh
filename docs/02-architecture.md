@@ -93,11 +93,11 @@ sequenceDiagram
 | Backend | Cloudflare Pages Functions (Workers runtime) |
 | Database | Cloudflare D1 |
 | Triển khai | `wrangler` CLI; repo git cá nhân (có thể dùng Pages tự deploy từ GitHub) |
-| Test | `node --test`: `npm test` (lõi, app), `npm run test:e2e` (Chrome qua DevTools Protocol), `npm run test:server` (Pages Functions trên `wrangler pages dev` thật, D1 cục bộ) |
+| Test | `node --test`: `npm test` (lõi, app), `npm run test:e2e` (Chrome qua DevTools Protocol), `npm run test:server` (Pages Functions trên `wrangler pages dev` thật, D1 cục bộ), `npm run test:sync` (KM-006: hai hồ sơ Chrome cùng một `wrangler pages dev` thật, app và API cùng origin) |
 
 ## Cấu trúc repo
 
-Toàn bộ mã sản phẩm nằm trong `src/`, và `src/` là *root directory* của project Pages (`wrangler pages dev` chạy từ `src/`; trên dashboard đặt Root directory = `src`). **Đã thấy ở `wrangler` 4.156.0 (KM-005):** `pages dev` bỏ qua binding D1 và `[vars]` trong `wrangler.toml`, chưa rõ vì sao, nên chạy cục bộ phải truyền bằng cờ `--d1`, `--binding` hoặc tệp `src/.dev.vars`; dùng `npm run dev:server`. Trên Cloudflare thật phải kiểm lại ở KM-006. Thư mục gốc chỉ còn tài liệu, tham chiếu và test.
+Toàn bộ mã sản phẩm nằm trong `src/`, và `src/` là *root directory* của project Pages (`wrangler pages dev` chạy từ `src/`; trên dashboard đặt Root directory = `src`). **Đã thấy ở `wrangler` 4.156.0 (KM-005):** `pages dev` bỏ qua binding D1 và `[vars]` trong `wrangler.toml`, chưa rõ vì sao, nên chạy cục bộ phải truyền bằng cờ `--d1`, `--binding` hoặc tệp `src/.dev.vars`; dùng `npm run dev:server`. Trên Cloudflare thật phải kiểm lại ở `KM-014`. Test server chạy `pages dev` từ một thư mục liên kết tới `src/` để `src/.dev.vars` của `dev:server` không lọt vào binding mà test cố ý để trống (KM-006). Thư mục gốc chỉ còn tài liệu, tham chiếu và test.
 
 ```
 keymesh/
@@ -124,14 +124,17 @@ keymesh/
 │   │       │   └── merge.js
 │   │       ├── app.js         # khởi động, trạng thái màn hình, hành động; không biết gì về DOM của màn hình
 │   │       ├── ui/            # các màn hình; ui/shell.js là điểm vào của trang
-│   │       ├── session.js     # khoá và vault trong bộ nhớ; mọi thay đổi đi qua session.mutate()
+│   │       ├── session.js     # khoá và các vault trong bộ nhớ; lưu và kết quả đồng bộ đi chung một hàng đợi
 │   │       ├── store.js
+│   │       ├── remote.js      # gọi API (KM-006), không giữ trạng thái; tên không chứa "api" vì app shell cấm
+│   │       ├── auth.js        # đăng ký, đăng nhập, đăng xuất, xoá dữ liệu (KM-006)
+│   │       ├── vault-diff.js, password-strength.js   # đếm thay đổi chờ, độ mạnh mật khẩu (KM-006)
 │   │       ├── tab-lock.js, idle.js, clipboard.js   # một tab mở khoá, tự khoá, clipboard tự xoá
 │   │       ├── settings.js    # cài đặt của thiết bị (meta.settings), logic thuần
 │   │       ├── pwa.js         # đăng ký Service Worker, báo bản mới
 │   │       ├── vault-query.js, vault-ops.js, history-diff.js, field-file.js   # logic thuần trên vault
 │   │       ├── otp.js, passgen.js, wordlist.js
-│   │       ├── sync.js
+│   │       ├── sync.js        # lịch đồng bộ, backoff, trạng thái; không cầm khoá (KM-006)
 │   │       ├── mirror.js      # bản sao tự động ra file (Chromium)
 │   │       └── config.js      # cấu hình theo domain
 │   ├── functions/
@@ -140,8 +143,8 @@ keymesh/
 │   │       └── _http.js, _validate.js, _secrets.js, _auth.js, _rate-limit.js, _vaults.js
 │   └── migrations/
 │       └── 0001_init.sql
-├── test/                      # *.test.js, chạy bằng node --test; test/e2e/*.e2e.js: npm run test:e2e; test/server/*.server.js: npm run test:server
-└── testkit/                   # helper, vector, runner trình duyệt, serve.mjs (phục vụ cục bộ, đọc header từ `_headers`), sw-version.mjs (ghi VERSION và SHELL vào sw.js), gen-icons.mjs, e2e/ (harness CDP), wrangler-server.mjs (server thật cho test), dev-server.mjs (`npm run dev:server`); không được phục vụ
+├── test/                      # *.test.js, chạy bằng node --test; test/e2e/*.e2e.js: npm run test:e2e; test/server/*.server.js: npm run test:server; test/sync/*.sync.js: npm run test:sync
+└── testkit/                   # helper, vector, runner trình duyệt, serve.mjs (phục vụ cục bộ, đọc header từ `_headers`), sw-version.mjs (ghi VERSION và SHELL vào sw.js), gen-icons.mjs, e2e/ (harness CDP), wrangler-server.mjs (server thật cho test), dev-server.mjs (`npm run dev:server`), sync-devices.mjs (hai trình duyệt trên một server), device-gate.mjs (cắt riêng một giả lập khỏi server), fake-api.mjs, memory-store.mjs; không được phục vụ
 ```
 
 ## Triển khai và vận hành

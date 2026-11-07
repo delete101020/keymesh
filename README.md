@@ -39,6 +39,7 @@ npm run vectors        # tính lại testkit/vectors.js bằng node:crypto và s
 npm run sw-version     # ghi VERSION và danh sách file vào sw.js; npm test đỏ nếu quên sau khi đổi file trong src/public
 BROWSER_APP=Safari npm run test:browser   # hoặc Firefox: mở app đó trên macOS thay vì Chrome headless
 npm run test:server    # API trên wrangler pages dev thật, D1 cục bộ; mỗi tệp test tự có server và dữ liệu tạm
+npm run test:sync      # đồng bộ: hai hồ sơ Chrome cùng một wrangler pages dev thật (KM-006); KEYMESH_LONG=1 thêm test 10 phút
 ```
 
 `npm run test:e2e` chạy app thật trên Chrome qua DevTools Protocol, không cần package nào. Đặt `KEYMESH_SHOTS=<thư mục>` để lưu ảnh chụp màn hình, `CHROME_PATH` nếu Chrome nằm chỗ khác.
@@ -48,10 +49,20 @@ npm run test:server    # API trên wrangler pages dev thật, D1 cục bộ; m�
 `npm run dev:server` áp migration rồi chạy app kèm API ở `http://127.0.0.1:8788/`, dữ liệu nằm trong `src/.wrangler/`. Cần tệp `src/.dev.vars` (đã ở `.gitignore`, chỉ dùng giá trị thử):
 
 ```
-ALLOWED_ORIGINS=http://127.0.0.1:8788
+ALLOWED_ORIGINS=http://127.0.0.1:8788,http://127.0.0.1:8789
 REGISTRATION_TOKEN=<ít nhất 32 ký tự>
 SERVER_SECRET=<chuỗi ngẫu nhiên dài>
 ```
+
+Tệp này không ảnh hưởng `npm run test:server` / `test:sync`: test chạy server từ một thư mục khác, chỉ với binding của chính test.
+
+### Nối giả lập (KM-006)
+
+Mở app trên laptop ở `http://127.0.0.1:8788`. Mỗi giả lập đi qua một cổng chuyển tiếp riêng (`testkit/device-gate.mjs`), nên cắt một giả lập khỏi server là tắt cổng của nó, laptop vẫn chạy:
+
+- **Android:** `node testkit/device-gate.mjs 8790 8788` rồi `adb reverse tcp:8788 tcp:8790`; trên giả lập mở `http://127.0.0.1:8788`. Cắt: Ctrl-C cổng 8790 (chỉ `adb reverse --remove` thì kết nối keep-alive vẫn còn, giả lập vẫn tới được server).
+- **iOS (Simulator trên Mac):** `node testkit/device-gate.mjs 8789 8788`; trên giả lập mở `http://127.0.0.1:8789`. Simulator dùng chung loopback của Mac và không có chế độ máy bay, nên cắt bằng Ctrl-C cổng 8789; không có sự kiện `online`, app tự thử lại theo backoff (≤ 65 giây) hoặc khi về foreground.
+- Token đăng ký là `REGISTRATION_TOKEN` trong `src/.dev.vars`. Chỉ dùng dữ liệu thử.
 
 ## Ghi công
 

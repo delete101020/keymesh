@@ -12,6 +12,8 @@
 | **M5 · Hoàn thiện** | Snapshot, quản lý thiết bị, đổi mật khẩu theo luồng mới, export Bitwarden, audit log, **thùng rác** (UI khôi phục và tự xoá trắng), **bản sao tự động ra file**, **quản lý vault** (tạo, đổi tên, chuyển, xoá) | Đạt tiêu chí 6–8 |
 | **M6 · Tuỳ chọn** | Đã xếp hạng ở KM-011. **Làm, trước `KM-014`:** khôi phục khi quên mật khẩu (F-AUTH-10), xoay khoá (F-AUTH-09). **Hoãn:** Argon2id (WASM), mật khẩu riêng cho từng vault, chuyển item giữa vault, export plaintext, tag và yêu thích trên màn rộng. **Bỏ:** share target | Hai epic "làm" đạt trên giả lập và server cục bộ |
 
+**Trạng thái M3 (KM-006, 2026-11-07): phần tự động đạt trên server cục bộ, chờ originator kiểm tay trên giả lập (KM-006 AC51).** Khi phần kiểm tay đạt, M3 ghi là **đạt trên giả lập và server cục bộ**, không hơn: chưa deploy, chưa chạy trên Cloudflare thật, chưa kiểm trên điện thoại thật. Điều kiện còn lại trước khi đưa secret thật lên server: `KM-014` (chưa xếp mốc) và các điều kiện ở [04](04-security.md#điều-kiện-trước-khi-đưa-secret-thật-lên-server).
+
 **Trạng thái M2 (KM-004, 2026-11-01): đạt trên giả lập.** Giả lập Android và iOS đều đã cài, mở được offline và tự khoá khi ở nền. Năm mục kiểm tay của KM-003 và copy bằng tay trên Safari, Firefox desktop được originator tách sang KM-013 (2026-11-01), không chặn M2. Màn đa nhiệm vẫn lộ nội dung trên cả hai giả lập; originator chấp nhận cho M2 vì chỉ dùng dữ liệu thử (2026-11-01), tự che lại secret ở KM-012. Tiêu chí này chỉ có nghĩa là đạt trên giả lập: **chưa kiểm trên điện thoại thật thì chưa cất secret thật trên điện thoại**.
 
 M1 và M2 vẫn dùng được hoàn toàn cục bộ mà không cần Cloudflare, nên có thể dùng ngay trong lúc làm M3.

@@ -36,7 +36,8 @@ thư mục gốc mới ngoài cây đó.
 - `src/` là root của project Pages: `src/wrangler.toml`, `src/public/` (thứ được phục vụ, kể cả `_headers`),
   `src/functions/api/` (Pages Functions), `src/migrations/NNNN_<tên>.sql` (D1).
 - Mã client ở `src/public/js/`: lõi thuần ở `core/`, màn hình ở `ui/`, các lớp khác (`app.js`, `store.js`,
-  `sync.js`, `mirror.js`, `config.js`) ngay trong `js/`.
+  `session.js`, `sync.js`, `auth.js`, `remote.js`, `mirror.js`, `config.js`) ngay trong `js/`. Tệp gọi API tên
+  `remote.js`, không phải `api.js`: test KM-004 AC11 cấm tên tệp chứa `api` trong app shell.
 - `test/<khu-vực>.test.js` — chỉ chứa file test. `testkit/` — helper, vector, runner trình duyệt.
   Cả hai nằm ngoài `src/` nên không bao giờ bị deploy.
 - `envvault.html` (v1) và `design/` (prototype) chỉ để **tham chiếu**: không sửa, không import từ mã v2.
@@ -52,7 +53,9 @@ thư mục gốc mới ngoài cây đó.
 
 ### Phân lớp
 
-Chiều phụ thuộc chỉ đi xuống: `ui/` → `app.js` → `store.js` / `sync.js` / `mirror.js` → `core/`.
+Chiều phụ thuộc chỉ đi xuống: `ui/` → `app.js` → `auth.js` / `sync.js` / `mirror.js` → `session.js` / `remote.js` /
+`store.js` → `core/`. `sync.js` không cầm khoá hay plaintext: việc cần khoá là phương thức của `session.js`, chạy
+trên cùng hàng đợi với lần lưu (KM-006).
 
 - **`core/`** (`bytes`, `errors`, `crypto`, `model`, `merge`): thuần. Không DOM, không
   IndexedDB/localStorage, không `fetch`, không trạng thái chung chứa khoá hay plaintext; thời gian và
@@ -77,6 +80,10 @@ Chiều phụ thuộc chỉ đi xuống: `ui/` → `app.js` → `store.js` / `sy
 - Server test bằng môi trường local của wrangler (D1 local), không gọi Cloudflare thật: `npm run test:server`,
   tệp `test/server/*.server.js`. Phần server chưa xong khi lệnh này chưa xanh. Bộ này không nằm trong `npm test`,
   để `npm test` vẫn chạy được khi chưa cài gì.
+- Đồng bộ test trên hai hồ sơ Chrome cùng một `wrangler pages dev` thật: `npm run test:sync`, tệp
+  `test/sync/*.sync.js` (KM-006). Cần Chrome và `npm install`, không nằm trong `npm test`. Lỗi mạng, thời gian và
+  trạng thái server tạo từ bên ngoài (CDP, SQLite cục bộ), không có cờ test trong mã. `KEYMESH_LONG=1` chạy thêm
+  test 10 phút thời gian thật. Phần đồng bộ chưa xong khi lệnh này chưa xanh.
 
 ### Bảo mật phía client (xem `docs/04-security.md`)
 
