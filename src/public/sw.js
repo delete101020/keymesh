@@ -1,6 +1,6 @@
 // App shell only: a fixed list cached at install, nothing cached at runtime, /api/* never touched.
 // What is not cached cannot leak. VERSION and SHELL are written by `npm run sw-version`; npm test fails if they are stale.
-const VERSION = 'e950c6376a4a3423';
+const VERSION = 'db7563931ae5350c';
 const SHELL = [
   './',
   'icons/apple-touch-icon-180.png',
@@ -9,6 +9,7 @@ const SHELL = [
   'icons/icon-maskable-512.png',
   'icons/icon.svg',
   'js/app.js',
+  'js/auth.js',
   'js/clipboard.js',
   'js/core/bytes.js',
   'js/core/crypto.js',
@@ -22,6 +23,7 @@ const SHELL = [
   'js/passgen.js',
   'js/password-strength.js',
   'js/pwa.js',
+  'js/remote.js',
   'js/session.js',
   'js/settings.js',
   'js/store.js',
